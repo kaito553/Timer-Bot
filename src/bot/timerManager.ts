@@ -90,8 +90,8 @@ function buildStopRow(): ActionRowBuilder<ButtonBuilder> {
   );
 }
 
-function buildAttachment(t: ActiveTimer, remainingSeconds: number): AttachmentBuilder {
-  const buf = renderTimerImage({
+async function buildAttachment(t: ActiveTimer, remainingSeconds: number): Promise<AttachmentBuilder> {
+  const buf = await renderTimerImage({
     remainingSeconds,
     phase: t.phase,
     style: t.style,
@@ -108,7 +108,7 @@ async function repostMessage(t: ActiveTimer, remainingSeconds: number): Promise<
     t.paletteIndex = (t.paletteIndex + 1) % RANDOM_PALETTE.length;
   }
 
-  const attachment = buildAttachment(t, remainingSeconds);
+  const attachment = await buildAttachment(t, remainingSeconds);
   const embed = buildEmbed(t, remainingSeconds);
   const newMessage = await channel.send({
     embeds: [embed],
@@ -167,7 +167,7 @@ async function tick(channelId: string): Promise<void> {
   }
 
   try {
-    const attachment = buildAttachment(t, remainingSeconds);
+    const attachment = await buildAttachment(t, remainingSeconds);
     const embed = buildEmbed(t, remainingSeconds);
     await t.message.edit({ embeds: [embed], files: [attachment], components: [buildStopRow()] });
   } catch (err) { logger.error({ err, channelId }, "Failed to update timer message"); }
@@ -219,7 +219,7 @@ export async function startTimer(opts: {
   };
 
   const remainingSeconds = Math.ceil((phaseEndsAt - Date.now()) / 1000);
-  const attachment = buildAttachment(placeholder, remainingSeconds);
+  const attachment = await buildAttachment(placeholder, remainingSeconds);
   const embed = buildEmbed(placeholder, remainingSeconds);
   const message = await channel.send({ embeds: [embed], files: [attachment], components: [buildStopRow()] });
 
@@ -231,11 +231,8 @@ export async function startTimer(opts: {
 }
 
 export interface StopTimerOptions {
-  /** if true — session ended naturally, no stoppedBy mention */
   silent?: boolean;
-  /** Discord user ID of the person who stopped it */
   stoppedById?: string;
-  /** Display name of the person who stopped it */
   stoppedByName?: string;
 }
 
@@ -265,14 +262,12 @@ export async function stopTimer(
     const isBreak = t.phase === "break";
     const finalEmbed = new EmbedBuilder()
       .setTitle(isBreak ? "☕ تم إيقاف البريك" : "⏹ تم إيقاف التايمر")
-      .setDescription(
-        [
-          `📖 مدة المذاكرة: **${t.studyMinutes} دقيقة**`,
-          `☕ البريك: **${t.breakMinutes} دقيقة**`,
-          "",
-          stoppedLine,
-        ].join("\n"),
-      )
+      .setDescription([
+        `📖 مدة المذاكرة: **${t.studyMinutes} دقيقة**`,
+        `☕ البريك: **${t.breakMinutes} دقيقة**`,
+        "",
+        stoppedLine,
+      ].join("\n"))
       .setColor(silent ? 0x22c55e : 0xef4444)
       .setTimestamp(new Date())
       .toJSON();
