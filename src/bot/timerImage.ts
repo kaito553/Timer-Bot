@@ -90,9 +90,9 @@ export async function renderTimerImage(opts: TimerImageOptions): Promise<Buffer>
     }); break;
     case "mylittlepony": await renderCharacterImage(ctx, opts, "mylittlepony.png", {
       overlayColor: "rgba(180, 80, 130, 0.22)",
-      textColor: "#6d1a6d",
-      textShadow: "#ff9edb",
-      accentColor: "#9c1a7a",
+      textColor: "#ff1493",
+      textShadow: "#ffffff",
+      accentColor: "#ff1493",
       label: "🦄 MY LITTLE PONY TIMER 🦄",
     }); break;
     case "kaitokid":   await renderCharacterImage(ctx, opts, "kaitokid.png", {
