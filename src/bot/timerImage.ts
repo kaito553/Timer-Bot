@@ -38,7 +38,7 @@ function formatTime(totalSeconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-export type TimerStyle = "random" | "hellokitty" | "chromie" | "kaitokid" | "gojo";
+export type TimerStyle = "random" | "hellokitty" | "kuromi" | "kaitokid" | "gojo";
 
 export interface ColorPair {
   accent: string;
@@ -81,7 +81,13 @@ export async function renderTimerImage(opts: TimerImageOptions): Promise<Buffer>
 
   switch (opts.style) {
     case "hellokitty": renderHelloKitty(ctx, opts);          break;
-    case "chromie":    renderChromie(ctx, opts);              break;
+    case "kuromi": await renderCharacterImage(ctx, opts, "kuromi.png", {
+      overlayColor: "rgba(20, 0, 20, 0.30)",
+      textColor: "#1a1a1a",
+      textShadow: "#ff69b4",
+      accentColor: "#111111",
+      label: "🖤 KUROMI TIMER 🖤",
+    }); break;
     case "kaitokid":   await renderCharacterImage(ctx, opts, "kaitokid.png", {
       overlayColor: "rgba(10, 20, 60, 0.45)",
       textColor: "#f5e48a",
@@ -336,51 +342,6 @@ function drawKittyFace(ctx: SKRSContext2D, x: number, y: number, size: number): 
     }
   }
   ctx.restore();
-}
-
-// ─────────────────── CHROMIE ───────────────────
-
-function renderChromie(ctx: SKRSContext2D, opts: TimerImageOptions): void {
-  const isBreak = opts.phase === "break";
-  const bg = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  bg.addColorStop(0, "#0b1220"); bg.addColorStop(0.5, "#1f2937"); bg.addColorStop(1, "#0b1220");
-  ctx.fillStyle = bg; ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-  ctx.save(); ctx.globalCompositeOperation = "lighter";
-  for (let i = -2; i < 8; i++) {
-    const grad = ctx.createLinearGradient(i*120, 0, i*120+90, HEIGHT);
-    grad.addColorStop(0, "rgba(255,255,255,0)");
-    grad.addColorStop(0.5, "rgba(180,200,220,0.18)");
-    grad.addColorStop(1, "rgba(255,255,255,0)");
-    ctx.fillStyle = grad; ctx.fillRect(i*120, 0, 90, HEIGHT);
-  }
-  ctx.restore();
-
-  const cx = WIDTH/2, cy = HEIGHT/2;
-  ctx.save();
-  const plate = ctx.createLinearGradient(0, cy-90, 0, cy+90);
-  plate.addColorStop(0, "#e6ecf2"); plate.addColorStop(0.5, "#7a8696"); plate.addColorStop(1, "#cfd6df");
-  ctx.fillStyle = plate; roundRect(ctx, 70, cy-95, WIDTH-140, 170, 24); ctx.fill();
-  ctx.strokeStyle = "#1a1f2a"; ctx.lineWidth = 3; ctx.stroke(); ctx.restore();
-
-  ctx.save(); ctx.fillStyle = "#cfd6df"; ctx.shadowColor="#000"; ctx.shadowBlur=6;
-  ctx.font = `bold 28px "${FONT_FAMILY}", sans-serif`;
-  ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText("⚙ CHROMIE TIMER ⚙", cx, 50); ctx.restore();
-
-  ctx.save();
-  const tg = ctx.createLinearGradient(0, cy-70, 0, cy+70);
-  tg.addColorStop(0, "#ffffff"); tg.addColorStop(0.45, "#9aa4b2"); tg.addColorStop(0.55, "#3b4452"); tg.addColorStop(1, "#dde3ea");
-  ctx.fillStyle = tg; ctx.font = `bold 130px "${FONT_FAMILY}", sans-serif`;
-  ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(formatTime(opts.remainingSeconds), cx, cy+5);
-  ctx.lineWidth=3; ctx.strokeStyle="#0f1422"; ctx.strokeText(formatTime(opts.remainingSeconds), cx, cy+5);
-  ctx.restore();
-
-  ctx.save(); ctx.fillStyle="#cfd6df";
-  ctx.font=`bold 22px "${FONT_FAMILY}", sans-serif`;
-  ctx.textAlign="center"; ctx.textBaseline="middle";
-  ctx.fillText(isBreak ? "■ BREAK TIME ■" : "■ FOCUS TIME ■", cx, HEIGHT-32); ctx.restore();
 }
 
 function roundRect(ctx: SKRSContext2D, x: number, y: number, w: number, h: number, r: number): void {

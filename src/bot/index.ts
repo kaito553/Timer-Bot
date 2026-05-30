@@ -25,7 +25,7 @@ const OPT_STYLE = "style";
 const STYLE_CHOICES = [
   { name: "🎨 ألوان عشوائية (افتراضي)", value: "random"     },
   { name: "🎀 Hello Kitty",              value: "hellokitty" },
-  { name: "⚙ Chromie (كروم)",            value: "chromie"   },
+  { name: "🖤 Kuromi",                    value: "kuromi"    },
   { name: "♠ Kaito Kid",                 value: "kaitokid"  },
   { name: "∞ Satoru Gojo",               value: "gojo"      },
 ] as const;
@@ -33,7 +33,7 @@ const STYLE_CHOICES = [
 type StyleValue = (typeof STYLE_CHOICES)[number]["value"];
 
 function isStyleValue(v: string | null): v is StyleValue {
-  return ["random", "hellokitty", "chromie", "kaitokid", "gojo"].includes(v ?? "");
+  return ["random", "hellokitty", "kuromi", "kaitokid", "gojo"].includes(v ?? "");
 }
 
 const CLIENT_ID =
