@@ -1,15 +1,12 @@
 import {
   Client,
-  Events,
   GatewayIntentBits,
   REST,
   Routes,
   SlashCommandBuilder,
-  MessageFlags,
-  ActivityType,
-  ChannelType,
-  type Interaction,
   type TextBasedChannel,
+  MessageFlags,
+  ChannelType,
 } from "discord.js";
 import { logger } from "../lib/logger.js";
 import {
@@ -20,50 +17,43 @@ import {
 } from "./timerManager.js";
 
 const COMMAND_TIMER = "timer";
-const COMMAND_STOP = "break";
-
+const COMMAND_STOP  = "break";
 const OPT_STUDY = "study_minutes";
 const OPT_BREAK = "break_minutes";
 const OPT_STYLE = "style";
 
 const STYLE_CHOICES = [
-  { name: "Random colors (default)", value: "random" },
-  { name: "Hello Kitty 🎀", value: "hellokitty" },
-  { name: "Chromie ⚙ (chrome)", value: "chromie" },
+  { name: "🎨 ألوان عشوائية (افتراضي)", value: "random"     },
+  { name: "🎀 Hello Kitty",              value: "hellokitty" },
+  { name: "⚙ Chromie (كروم)",            value: "chromie"   },
+  { name: "♠ Kaito Kid",                 value: "kaitokid"  },
+  { name: "∞ Satoru Gojo",               value: "gojo"      },
 ] as const;
 
 type StyleValue = (typeof STYLE_CHOICES)[number]["value"];
 
 function isStyleValue(v: string | null): v is StyleValue {
-  return v === "random" || v === "hellokitty" || v === "chromie";
+  return ["random", "hellokitty", "chromie", "kaitokid", "gojo"].includes(v ?? "");
 }
+
+const CLIENT_ID =
+  process.env.DISCORD_CLIENT_ID ?? "1494745593225023539";
 
 function buildCommands() {
   const timer = new SlashCommandBuilder()
     .setName(COMMAND_TIMER)
     .setDescription("ابدأ تايمر مذاكرة وبريك")
     .addIntegerOption((o) =>
-      o
-        .setName(OPT_STUDY)
-        .setDescription("مدة المذاكرة بالدقايق")
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(1440),
+      o.setName(OPT_STUDY).setDescription("مدة المذاكرة بالدقايق")
+        .setRequired(true).setMinValue(1).setMaxValue(1440),
     )
     .addIntegerOption((o) =>
-      o
-        .setName(OPT_BREAK)
-        .setDescription("مدة البريك بالدقايق")
-        .setRequired(true)
-        .setMinValue(1)
-        .setMaxValue(1440),
+      o.setName(OPT_BREAK).setDescription("مدة البريك بالدقايق")
+        .setRequired(true).setMinValue(1).setMaxValue(1440),
     )
     .addStringOption((o) =>
-      o
-        .setName(OPT_STYLE)
-        .setDescription("شكل صورة التايمر")
-        .setRequired(false)
-        .addChoices(...STYLE_CHOICES),
+      o.setName(OPT_STYLE).setDescription("شكل صورة التايمر")
+        .setRequired(false).addChoices(...STYLE_CHOICES),
     );
 
   const stop = new SlashCommandBuilder()
@@ -73,60 +63,63 @@ function buildCommands() {
   return [timer.toJSON(), stop.toJSON()];
 }
 
-async function registerCommands(token: string, clientId: string): Promise<void> {
+async function registerCommands(token: string): Promise<void> {
   const rest = new REST({ version: "10" }).setToken(token);
-  await rest.put(Routes.applicationCommands(clientId), {
-    body: buildCommands(),
-  });
-  logger.info("Discord slash commands registered globally");
+  await rest.put(Routes.applicationCommands(CLIENT_ID), { body: buildCommands() });
+  logger.info({}, "Slash commands registered globally.");
 }
 
-async function handleInteraction(interaction: Interaction): Promise<void> {
-  try {
+let client: Client | null = null;
+
+export async function initBot(token: string): Promise<void> {
+  client = new Client({
+    intents: [
+      GatewayIntentBits.Guilds,
+      GatewayIntentBits.GuildMessages,
+    ],
+  });
+
+  client.once("ready", (c) => {
+    logger.info({ tag: c.user.tag }, "Discord client ready");
+    void registerCommands(token).catch((err) =>
+      logger.error({ err }, "Failed to register slash commands"),
+    );
+  });
+
+  client.on("interactionCreate", async (interaction) => {
+    // ── Button: stop timer ──
     if (interaction.isButton() && interaction.customId === "timer:stop") {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
       const channelId = interaction.channelId;
-      const result = await stopTimer(channelId, false);
+      const result = await stopTimer(channelId, {
+        stoppedById:   interaction.user.id,
+        stoppedByName: interaction.user.displayName ?? interaction.user.username,
+      });
+
       if (result.ok) {
-        await interaction.reply({
-          content: "🛑 تم إيقاف التايمر.",
-          flags: MessageFlags.Ephemeral,
-        });
+        await interaction.editReply({ content: "✅ تم إيقاف التايمر." });
       } else {
-        const fallbackChannelId = findTimerByUser(interaction.user.id);
-        if (fallbackChannelId) {
-          const r2 = await stopTimer(fallbackChannelId, false);
-          await interaction.reply({
-            content: r2.ok
-              ? "🛑 تم إيقاف تايمرك (كان شغال في قناة تانية)."
-              : r2.reason,
-            flags: MessageFlags.Ephemeral,
-          });
-        } else {
-          await interaction.reply({
-            content: result.reason,
-            flags: MessageFlags.Ephemeral,
-          });
-        }
+        await interaction.editReply({ content: `❌ ${result.reason}` });
       }
       return;
     }
 
     if (!interaction.isChatInputCommand()) return;
 
+    // ── /timer ──
     if (interaction.commandName === COMMAND_TIMER) {
       const studyMinutes = interaction.options.getInteger(OPT_STUDY, true);
       const breakMinutes = interaction.options.getInteger(OPT_BREAK, true);
-      const styleRaw = interaction.options.getString(OPT_STYLE, false);
-      const style = isStyleValue(styleRaw) ? styleRaw : "random";
+      const styleRaw     = interaction.options.getString(OPT_STYLE, false);
+      const style        = isStyleValue(styleRaw) ? styleRaw : "random";
 
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
       let channel: TextBasedChannel | null = interaction.channel;
       if (!channel && interaction.channelId) {
         try {
-          const fetched = await interaction.client.channels.fetch(
-            interaction.channelId,
-          );
+          const fetched = await interaction.client.channels.fetch(interaction.channelId);
           if (
             fetched &&
             (fetched.type === ChannelType.GuildText ||
@@ -141,7 +134,7 @@ async function handleInteraction(interaction: Interaction): Promise<void> {
             channel = fetched as TextBasedChannel;
           }
         } catch (err) {
-          logger.error({ err }, "Failed to fetch channel for timer command");
+          logger.error({ err }, "Failed to fetch channel");
         }
       }
 
@@ -152,6 +145,7 @@ async function handleInteraction(interaction: Interaction): Promise<void> {
         });
         return;
       }
+
       const result = await startTimer({
         channel,
         userId: interaction.user.id,
@@ -170,117 +164,41 @@ async function handleInteraction(interaction: Interaction): Promise<void> {
       return;
     }
 
+    // ── /break (stop) ──
     if (interaction.commandName === COMMAND_STOP) {
-      const channelId = interaction.channelId;
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+
+      // Try the current channel first, then fall back to any timer the user owns
+      let channelId: string | null = interaction.channelId;
+      if (!channelId || !interaction.client.channels.cache.has(channelId)) {
+        channelId = findTimerByUser(interaction.user.id);
+      }
+
       if (!channelId) {
-        await interaction.reply({
-          content: "مش لاقي القناة.",
-          flags: MessageFlags.Ephemeral,
-        });
+        await interaction.editReply({ content: "❌ مفيش تايمر شغال في القناة دي." });
         return;
       }
-      const result = await stopTimer(channelId, false);
-      if (result.ok) {
-        await interaction.reply({
-          content: "🛑 تم إيقاف التايمر.",
-          flags: MessageFlags.Ephemeral,
-        });
-      } else {
-        const fallbackChannelId = findTimerByUser(interaction.user.id);
-        if (fallbackChannelId) {
-          const r2 = await stopTimer(fallbackChannelId, false);
-          await interaction.reply({
-            content: r2.ok
-              ? "🛑 تم إيقاف تايمرك (كان شغال في قناة تانية)."
-              : r2.reason,
-            flags: MessageFlags.Ephemeral,
-          });
-        } else {
-          await interaction.reply({
-            content: result.reason,
-            flags: MessageFlags.Ephemeral,
-          });
-        }
-      }
-      return;
-    }
-  } catch (err) {
-    logger.error({ err }, "Interaction handler error");
-    if (interaction.isRepliable() && !interaction.replied) {
-      try {
-        await interaction.reply({
-          content: "حصل خطأ غير متوقع. حاول تاني.",
-          flags: MessageFlags.Ephemeral,
-        });
-      } catch {
-        /* noop */
-      }
-    }
-  }
-}
 
-export async function startBot(): Promise<void> {
-  const token = process.env["DISCORD_BOT_TOKEN"];
-  if (!token) {
-    logger.warn("DISCORD_BOT_TOKEN not set — Discord bot will not start");
-    return;
-  }
-
-  const client = new Client({
-    intents: [GatewayIntentBits.Guilds],
-  });
-
-  client.once(Events.ClientReady, async (c) => {
-    logger.info({ user: c.user.tag }, "Discord bot is ready");
-
-    const permissions =
-      (1n << 10n) |
-      (1n << 11n) |
-      (1n << 14n) |
-      (1n << 15n) |
-      (1n << 16n) |
-      (1n << 18n) |
-      (1n << 31n);
-    const inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${c.user.id}&permissions=${permissions.toString()}&scope=bot%20applications.commands`;
-    logger.info(
-      { inviteUrl },
-      "===== افتح اللينك ده عشان تضيف البوت للسيرفر =====",
-    );
-
-    try {
-      c.user.setPresence({
-        status: "online",
-        activities: [
-          {
-            name: "/timer — Focus Study",
-            type: ActivityType.Watching,
-          },
-        ],
+      const result = await stopTimer(channelId, {
+        stoppedById:   interaction.user.id,
+        stoppedByName: interaction.user.displayName ?? interaction.user.username,
       });
-    } catch (err) {
-      logger.error({ err }, "Failed to set bot presence");
-    }
-    try {
-      await registerCommands(token, c.user.id);
-    } catch (err) {
-      logger.error({ err }, "Failed to register slash commands");
-    }
-  });
 
-  client.on(Events.InteractionCreate, (interaction) => {
-    void handleInteraction(interaction);
-  });
-
-  client.on(Events.Error, (err) => {
-    logger.error({ err }, "Discord client error");
+      if (result.ok) {
+        await interaction.editReply({ content: "✅ تم إيقاف التايمر." });
+      } else {
+        await interaction.editReply({ content: `❌ ${result.reason}` });
+      }
+    }
   });
 
   await client.login(token);
+}
 
-  const shutdown = () => {
-    shutdownAllTimers();
-    client.destroy().catch(() => undefined);
-  };
-  process.on("SIGTERM", shutdown);
-  process.on("SIGINT", shutdown);
+export async function shutdownBot(): Promise<void> {
+  shutdownAllTimers();
+  if (client) {
+    client.destroy();
+    client = null;
+  }
 }

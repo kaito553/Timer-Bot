@@ -54,8 +54,9 @@ function formatRemaining(seconds: number): string {
 function styleColor(t: ActiveTimer): number {
   if (t.phase === "break") return 0x22d3ee;
   if (t.style === "hellokitty") return 0xff5da8;
-  if (t.style === "chromie") return 0x9aa4b2;
-  // random
+  if (t.style === "chromie")    return 0x9aa4b2;
+  if (t.style === "kaitokid")   return 0xd4af37;
+  if (t.style === "gojo")       return 0x7c3aed;
   const hex = RANDOM_PALETTE[t.paletteIndex % RANDOM_PALETTE.length]!.accent;
   return parseInt(hex.slice(1), 16);
 }
@@ -63,7 +64,6 @@ function styleColor(t: ActiveTimer): number {
 function buildEmbed(t: ActiveTimer, remainingSeconds: number): APIEmbed {
   const isBreak = t.phase === "break";
   const title = isBreak ? "☕ وقت البريك" : "📚 Focus Study Session";
-
   const description = [
     `📖 مدة المذاكرة: **${t.studyMinutes} دقيقة**`,
     `☕ البريك: **${t.breakMinutes} دقيقة**`,
@@ -104,14 +104,12 @@ async function repostMessage(t: ActiveTimer, remainingSeconds: number): Promise<
   const channel = t.message.channel;
   if (!channel.isSendable()) return;
 
-  // Rotate palette for "random" style on each repost so colors keep changing.
   if (t.style === "random") {
     t.paletteIndex = (t.paletteIndex + 1) % RANDOM_PALETTE.length;
   }
 
   const attachment = buildAttachment(t, remainingSeconds);
   const embed = buildEmbed(t, remainingSeconds);
-
   const newMessage = await channel.send({
     embeds: [embed],
     files: [attachment],
@@ -122,9 +120,7 @@ async function repostMessage(t: ActiveTimer, remainingSeconds: number): Promise<
   t.message = newMessage;
   t.lastRepostAt = Date.now();
 
-  try {
-    await oldMessage.delete();
-  } catch (err) {
+  try { await oldMessage.delete(); } catch (err) {
     logger.error({ err }, "Failed to delete previous timer message");
   }
 }
@@ -141,21 +137,13 @@ async function tick(channelId: string): Promise<void> {
       t.phase = "break";
       t.phaseEndsAt = now + t.breakMinutes * 60 * 1000;
       remainingSeconds = Math.ceil((t.phaseEndsAt - now) / 1000);
-
       try {
         const channel = t.message.channel;
         if (channel.isSendable()) {
-          await channel.send({
-            content: `<@${t.userId}> ⏰ خلصت مدة المذاكرة! ابدأ البريك (**${t.breakMinutes} دقيقة**) ☕`,
-          });
+          await channel.send({ content: `<@${t.userId}> ⏰ خلصت مدة المذاكرة! ابدأ البريك (**${t.breakMinutes} دقيقة**) ☕` });
         }
-      } catch (err) {
-        logger.error({ err }, "Failed to send phase change message");
-      }
-
-      try {
-        await repostMessage(t, remainingSeconds);
-      } catch (err) {
+      } catch (err) { logger.error({ err }, "Failed to send phase change message"); }
+      try { await repostMessage(t, remainingSeconds); } catch (err) {
         logger.error({ err }, "Failed to repost timer at phase change");
       }
       return;
@@ -163,23 +151,16 @@ async function tick(channelId: string): Promise<void> {
       try {
         const channel = t.message.channel;
         if (channel.isSendable()) {
-          await channel.send({
-            content: `<@${t.userId}> ✅ خلص البريك! جلسة المذاكرة انتهت بنجاح. شغل تاني بـ \`/timer\``,
-          });
+          await channel.send({ content: `<@${t.userId}> ✅ خلص البريك! جلسة المذاكرة انتهت بنجاح. شغل تاني بـ \`/timer\`` });
         }
-      } catch (err) {
-        logger.error({ err }, "Failed to send completion message");
-      }
-      await stopTimer(channelId, true);
+      } catch (err) { logger.error({ err }, "Failed to send completion message"); }
+      await stopTimer(channelId, { silent: true });
       return;
     }
   }
 
-  const sinceRepost = now - t.lastRepostAt;
-  if (sinceRepost >= REPOST_INTERVAL_MS) {
-    try {
-      await repostMessage(t, remainingSeconds);
-    } catch (err) {
+  if (Date.now() - t.lastRepostAt >= REPOST_INTERVAL_MS) {
+    try { await repostMessage(t, remainingSeconds); } catch (err) {
       logger.error({ err, channelId }, "Failed to repost timer message");
     }
     return;
@@ -188,15 +169,11 @@ async function tick(channelId: string): Promise<void> {
   try {
     const attachment = buildAttachment(t, remainingSeconds);
     const embed = buildEmbed(t, remainingSeconds);
-    await t.message.edit({
-      embeds: [embed],
-      files: [attachment],
-      components: [buildStopRow()],
-    });
-  } catch (err) {
-    logger.error({ err, channelId }, "Failed to update timer message");
-  }
+    await t.message.edit({ embeds: [embed], files: [attachment], components: [buildStopRow()] });
+  } catch (err) { logger.error({ err, channelId }, "Failed to update timer message"); }
 }
+
+// ─────────────────── PUBLIC API ───────────────────
 
 export async function startTimer(opts: {
   channel: TextBasedChannel;
@@ -207,43 +184,22 @@ export async function startTimer(opts: {
 }): Promise<{ ok: true } | { ok: false; reason: string }> {
   const { channel, userId, studyMinutes, breakMinutes, style } = opts;
 
-  if (!channel.isSendable()) {
-    return { ok: false, reason: "مش قادر أبعت رسائل في القناة دي." };
-  }
+  if (!channel.isSendable()) return { ok: false, reason: "مش قادر أبعت رسائل في القناة دي." };
 
-  if (
-    channel.type !== ChannelType.GuildText &&
-    channel.type !== ChannelType.PublicThread &&
-    channel.type !== ChannelType.PrivateThread &&
-    channel.type !== ChannelType.GuildAnnouncement &&
-    channel.type !== ChannelType.AnnouncementThread &&
-    channel.type !== ChannelType.GuildVoice &&
-    channel.type !== ChannelType.GuildStageVoice &&
-    channel.type !== ChannelType.DM
-  ) {
-    return { ok: false, reason: "نوع القناة دي غير مدعوم." };
-  }
+  const allowedTypes = [
+    ChannelType.GuildText, ChannelType.PublicThread, ChannelType.PrivateThread,
+    ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread,
+    ChannelType.GuildVoice, ChannelType.GuildStageVoice, ChannelType.DM,
+  ] as number[];
+  if (!allowedTypes.includes(channel.type)) return { ok: false, reason: "نوع القناة دي غير مدعوم." };
 
   if (active.has(channel.id)) {
-    return {
-      ok: false,
-      reason:
-        "في تايمر شغال بالفعل في القناة دي. أوقفه الأول بـ `/break` أو زر الإيقاف.",
-    };
+    return { ok: false, reason: "في تايمر شغال بالفعل في القناة دي. أوقفه الأول بـ `/break` أو زر الإيقاف." };
   }
 
-  if (
-    !Number.isFinite(studyMinutes) ||
-    !Number.isFinite(breakMinutes) ||
-    studyMinutes <= 0 ||
-    breakMinutes <= 0 ||
-    studyMinutes > 1440 ||
-    breakMinutes > 1440
-  ) {
-    return {
-      ok: false,
-      reason: "المدد لازم تكون أرقام بين 1 و 1440 دقيقة (24 ساعة).",
-    };
+  if (!Number.isFinite(studyMinutes) || !Number.isFinite(breakMinutes) ||
+      studyMinutes <= 0 || breakMinutes <= 0 || studyMinutes > 1440 || breakMinutes > 1440) {
+    return { ok: false, reason: "المدد لازم تكون أرقام بين 1 و 1440 دقيقة (24 ساعة)." };
   }
 
   const phaseEndsAt = Date.now() + studyMinutes * 60 * 1000;
@@ -265,35 +221,45 @@ export async function startTimer(opts: {
   const remainingSeconds = Math.ceil((phaseEndsAt - Date.now()) / 1000);
   const attachment = buildAttachment(placeholder, remainingSeconds);
   const embed = buildEmbed(placeholder, remainingSeconds);
-
-  const message = await channel.send({
-    embeds: [embed],
-    files: [attachment],
-    components: [buildStopRow()],
-  });
+  const message = await channel.send({ embeds: [embed], files: [attachment], components: [buildStopRow()] });
 
   placeholder.message = message;
   placeholder.lastRepostAt = Date.now();
-  const interval = setInterval(() => {
-    void tick(channel.id);
-  }, UPDATE_INTERVAL_MS);
-  placeholder.interval = interval;
-
+  placeholder.interval = setInterval(() => { void tick(channel.id); }, UPDATE_INTERVAL_MS);
   active.set(channel.id, placeholder);
   return { ok: true };
 }
 
+export interface StopTimerOptions {
+  /** if true — session ended naturally, no stoppedBy mention */
+  silent?: boolean;
+  /** Discord user ID of the person who stopped it */
+  stoppedById?: string;
+  /** Display name of the person who stopped it */
+  stoppedByName?: string;
+}
+
 export async function stopTimer(
   channelId: string,
-  silent = false,
+  options: StopTimerOptions = {},
 ): Promise<{ ok: true } | { ok: false; reason: string }> {
   const t = active.get(channelId);
-  if (!t) {
-    return { ok: false, reason: "مفيش تايمر شغال في القناة دي." };
-  }
+  if (!t) return { ok: false, reason: "مفيش تايمر شغال في القناة دي." };
 
   clearInterval(t.interval);
   active.delete(channelId);
+
+  const { silent = false, stoppedById, stoppedByName } = options;
+
+  let stoppedLine: string;
+  if (silent) {
+    stoppedLine = "✅ الجلسة انتهت بنجاح.";
+  } else if (stoppedById) {
+    const name = stoppedByName ?? `<@${stoppedById}>`;
+    stoppedLine = `🛑 تم الإيقاف بواسطة **${name}** (<@${stoppedById}>)`;
+  } else {
+    stoppedLine = "🛑 تم الإيقاف يدويًا.";
+  }
 
   try {
     const isBreak = t.phase === "break";
@@ -304,39 +270,27 @@ export async function stopTimer(
           `📖 مدة المذاكرة: **${t.studyMinutes} دقيقة**`,
           `☕ البريك: **${t.breakMinutes} دقيقة**`,
           "",
-          silent ? "✅ الجلسة انتهت بنجاح." : "🛑 تم الإيقاف يدويًا.",
+          stoppedLine,
         ].join("\n"),
       )
       .setColor(silent ? 0x22c55e : 0xef4444)
       .setTimestamp(new Date())
       .toJSON();
 
-    await t.message.edit({
-      embeds: [finalEmbed],
-      files: [],
-      components: [],
-    });
-  } catch (err) {
-    logger.error({ err, channelId }, "Failed to finalize timer message");
-  }
+    await t.message.edit({ embeds: [finalEmbed], files: [], components: [] });
+  } catch (err) { logger.error({ err, channelId }, "Failed to finalize timer message"); }
 
   return { ok: true };
 }
 
-export function hasTimer(channelId: string): boolean {
-  return active.has(channelId);
-}
+export function hasTimer(channelId: string): boolean { return active.has(channelId); }
 
 export function findTimerByUser(userId: string): string | null {
-  for (const [channelId, t] of active) {
-    if (t.userId === userId) return channelId;
-  }
+  for (const [channelId, t] of active) { if (t.userId === userId) return channelId; }
   return null;
 }
 
 export function shutdownAllTimers(): void {
-  for (const t of active.values()) {
-    clearInterval(t.interval);
-  }
+  for (const t of active.values()) clearInterval(t.interval);
   active.clear();
 }
