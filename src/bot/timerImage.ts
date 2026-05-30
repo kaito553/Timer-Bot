@@ -96,13 +96,17 @@ export async function renderTimerImage(opts: TimerImageOptions): Promise<Buffer>
       accentColor: "#d4af37",
       label: "♠ KAITO KID TIMER ♠",
     }); break;
-    case "gojo": await renderCharacterImage(ctx, opts, "gojo.png", {
-      overlayColor: "rgba(15, 5, 40, 0.50)",
-      textColor: "#ffffff",
-      textShadow: "#7c3aed",
-      accentColor: "#a78bfa",
-      label: "∞ SATORU GOJO TIMER ∞",
-    }); break;
+    case "gojo": {
+      const gojoIdx = ((opts.paletteIndex ?? 0) % 4) + 1;
+      await renderCharacterImage(ctx, opts, `gojo${gojoIdx}.png`, {
+        overlayColor: "rgba(15, 5, 40, 0.45)",
+        textColor: "#ffffff",
+        textShadow: "#7c3aed",
+        accentColor: "#a78bfa",
+        label: "∞ SATORU GOJO TIMER ∞",
+      });
+      break;
+    }
     default: renderNeon(ctx, opts); break;
   }
 
