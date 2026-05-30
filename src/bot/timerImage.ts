@@ -88,13 +88,7 @@ export async function renderTimerImage(opts: TimerImageOptions): Promise<Buffer>
       accentColor: "#111111",
       label: "🖤 KUROMI TIMER 🖤",
     }); break;
-    case "mylittlepony": await renderCharacterImage(ctx, opts, "mylittlepony.png", {
-      overlayColor: "rgba(180, 80, 130, 0.22)",
-      textColor: "#ff1493",
-      textShadow: "#ffffff",
-      accentColor: "#ff1493",
-      label: "🦄 MY LITTLE PONY TIMER 🦄",
-    }); break;
+    case "mylittlepony": await renderMLP(ctx, opts); break;
     case "kaitokid":   await renderCharacterImage(ctx, opts, "kaitokid.png", {
       overlayColor: "rgba(10, 20, 60, 0.45)",
       textColor: "#f5e48a",
@@ -348,6 +342,103 @@ function drawKittyFace(ctx: SKRSContext2D, x: number, y: number, size: number): 
       ctx.beginPath(); ctx.moveTo(dir*size*0.45, size*(0.1+yo)); ctx.lineTo(dir*size*0.95, size*(0.05+yo)); ctx.stroke();
     }
   }
+  ctx.restore();
+}
+
+// ─────────────────── MY LITTLE PONY ───────────────────
+
+async function renderMLP(ctx: SKRSContext2D, opts: TimerImageOptions): Promise<void> {
+  const isBreak = opts.phase === "break";
+  const cx = WIDTH / 2;
+  const cy = HEIGHT / 2;
+
+  // Draw image background — cover fit
+  try {
+    const img = await loadImage(assetPath("mylittlepony.png"));
+    const scale = Math.max(WIDTH / img.width, HEIGHT / img.height);
+    const sw = img.width * scale;
+    const sh = img.height * scale;
+    ctx.drawImage(img, (WIDTH - sw) / 2, (HEIGHT - sh) / 2, sw, sh);
+  } catch {
+    ctx.fillStyle = "#ffd6ec";
+    ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  }
+
+  // Very subtle top + bottom dark fade only (keep middle clear to show image)
+  const topFade = ctx.createLinearGradient(0, 0, 0, 80);
+  topFade.addColorStop(0, "rgba(120,0,80,0.45)");
+  topFade.addColorStop(1, "rgba(120,0,80,0)");
+  ctx.fillStyle = topFade;
+  ctx.fillRect(0, 0, WIDTH, 80);
+
+  const botFade = ctx.createLinearGradient(0, HEIGHT - 70, 0, HEIGHT);
+  botFade.addColorStop(0, "rgba(120,0,80,0)");
+  botFade.addColorStop(1, "rgba(120,0,80,0.45)");
+  ctx.fillStyle = botFade;
+  ctx.fillRect(0, HEIGHT - 70, WIDTH, 70);
+
+  // Frosted glass pill behind the time text
+  ctx.save();
+  ctx.globalAlpha = 0.55;
+  ctx.fillStyle = "#ffffff";
+  roundRect(ctx, cx - 300, cy - 78, 600, 140, 32);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = "#ff69b4";
+  ctx.lineWidth = 2.5;
+  ctx.stroke();
+  ctx.restore();
+
+  // Small sparkle dots on the pill border
+  const sparkles = [cx - 290, cx - 150, cx, cx + 150, cx + 290];
+  for (const sx of sparkles) {
+    ctx.save();
+    ctx.fillStyle = "#ff1493";
+    ctx.shadowColor = "#ff69b4";
+    ctx.shadowBlur = 8;
+    ctx.beginPath();
+    ctx.arc(sx, cy - 78, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
+  }
+
+  // Header label
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "#c71585";
+  ctx.shadowBlur = 10;
+  ctx.font = `bold 22px "${FONT_FAMILY}", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText("🦄 MY LITTLE PONY TIMER 🦄", cx, 36);
+  ctx.restore();
+
+  // Main time text — hot pink with white glow
+  const timeText = formatTime(opts.remainingSeconds);
+  ctx.save();
+  ctx.font = `bold 134px "${FONT_FAMILY}", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  // White outline for extra pop
+  ctx.lineWidth = 7;
+  ctx.strokeStyle = "#ffffff";
+  ctx.strokeText(timeText, cx, cy + 6);
+  // Hot pink fill with glow
+  ctx.fillStyle = "#ff1493";
+  ctx.shadowColor = "#ff69b4";
+  ctx.shadowBlur = 18;
+  ctx.fillText(timeText, cx, cy + 6);
+  ctx.restore();
+
+  // Phase label
+  ctx.save();
+  ctx.fillStyle = "#ffffff";
+  ctx.shadowColor = "#c71585";
+  ctx.shadowBlur = 8;
+  ctx.font = `bold 22px "${FONT_FAMILY}", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(isBreak ? "🌸 BREAK TIME 🌸" : "🌸 FOCUS TIME 🌸", cx, HEIGHT - 30);
   ctx.restore();
 }
 
