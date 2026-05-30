@@ -29,13 +29,13 @@ const OPT_STYLE = "style";
 const STYLE_CHOICES = [
   { name: "Random colors (default)", value: "random" },
   { name: "Hello Kitty 🎀", value: "hellokitty" },
-  { name: "Girl Style 🌸", value: "kuromie" },
+  { name: "Chromie ⚙ (chrome)", value: "chromie" },
 ] as const;
 
 type StyleValue = (typeof STYLE_CHOICES)[number]["value"];
 
 function isStyleValue(v: string | null): v is StyleValue {
-  return v === "random" || v === "hellokitty" || v === "kuromie";
+  return v === "random" || v === "hellokitty" || v === "chromie";
 }
 
 function buildCommands() {
@@ -85,20 +85,19 @@ async function handleInteraction(interaction: Interaction): Promise<void> {
   try {
     if (interaction.isButton() && interaction.customId === "timer:stop") {
       const channelId = interaction.channelId;
-      const stopperId = interaction.user.id;
-      const result = await stopTimer(channelId, false, stopperId);
+      const result = await stopTimer(channelId, false);
       if (result.ok) {
         await interaction.reply({
-          content: `🛑 تم إيقاف التايمر بواسطة <@${stopperId}>`,
+          content: "🛑 تم إيقاف التايمر.",
           flags: MessageFlags.Ephemeral,
         });
       } else {
-        const fallbackChannelId = findTimerByUser(stopperId);
+        const fallbackChannelId = findTimerByUser(interaction.user.id);
         if (fallbackChannelId) {
-          const r2 = await stopTimer(fallbackChannelId, false, stopperId);
+          const r2 = await stopTimer(fallbackChannelId, false);
           await interaction.reply({
             content: r2.ok
-              ? `🛑 تم إيقاف تايمرك بواسطة <@${stopperId}> (كان شغال في قناة تانية).`
+              ? "🛑 تم إيقاف تايمرك (كان شغال في قناة تانية)."
               : r2.reason,
             flags: MessageFlags.Ephemeral,
           });
@@ -173,7 +172,6 @@ async function handleInteraction(interaction: Interaction): Promise<void> {
 
     if (interaction.commandName === COMMAND_STOP) {
       const channelId = interaction.channelId;
-      const stopperId = interaction.user.id;
       if (!channelId) {
         await interaction.reply({
           content: "مش لاقي القناة.",
@@ -181,19 +179,19 @@ async function handleInteraction(interaction: Interaction): Promise<void> {
         });
         return;
       }
-      const result = await stopTimer(channelId, false, stopperId);
+      const result = await stopTimer(channelId, false);
       if (result.ok) {
         await interaction.reply({
-          content: `🛑 تم إيقاف التايمر بواسطة <@${stopperId}>`,
+          content: "🛑 تم إيقاف التايمر.",
           flags: MessageFlags.Ephemeral,
         });
       } else {
-        const fallbackChannelId = findTimerByUser(stopperId);
+        const fallbackChannelId = findTimerByUser(interaction.user.id);
         if (fallbackChannelId) {
-          const r2 = await stopTimer(fallbackChannelId, false, stopperId);
+          const r2 = await stopTimer(fallbackChannelId, false);
           await interaction.reply({
             content: r2.ok
-              ? `🛑 تم إيقاف تايمرك بواسطة <@${stopperId}> (كان شغال في قناة تانية).`
+              ? "🛑 تم إيقاف تايمرك (كان شغال في قناة تانية)."
               : r2.reason,
             flags: MessageFlags.Ephemeral,
           });

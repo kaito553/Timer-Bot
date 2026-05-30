@@ -41,28 +41,30 @@ function formatTime(totalSeconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-export type TimerStyle = "random" | "hellokitty" | "kuromie";
+export type TimerStyle = "random" | "hellokitty" | "chromie";
 
 export interface ColorPair {
   accent: string;
   accentSoft: string;
 }
 
+// Palette for the "random" style — each repost rotates through these.
 export const RANDOM_PALETTE: ColorPair[] = [
-  { accent: "#ff2bd6", accentSoft: "#a21caf" },
-  { accent: "#22d3ee", accentSoft: "#06b6d4" },
-  { accent: "#a3ff12", accentSoft: "#65a30d" },
-  { accent: "#ffeb3b", accentSoft: "#ca8a04" },
-  { accent: "#ff6b35", accentSoft: "#c2410c" },
-  { accent: "#b14eff", accentSoft: "#7e22ce" },
-  { accent: "#ff3366", accentSoft: "#be123c" },
-  { accent: "#4ad9ff", accentSoft: "#0284c7" },
+  { accent: "#ff2bd6", accentSoft: "#a21caf" }, // neon pink (default)
+  { accent: "#22d3ee", accentSoft: "#06b6d4" }, // cyan
+  { accent: "#a3ff12", accentSoft: "#65a30d" }, // neon green
+  { accent: "#ffeb3b", accentSoft: "#ca8a04" }, // yellow
+  { accent: "#ff6b35", accentSoft: "#c2410c" }, // orange
+  { accent: "#b14eff", accentSoft: "#7e22ce" }, // purple
+  { accent: "#ff3366", accentSoft: "#be123c" }, // crimson
+  { accent: "#4ad9ff", accentSoft: "#0284c7" }, // sky blue
 ];
 
 export interface TimerImageOptions {
   remainingSeconds: number;
   phase: "study" | "break";
   style: TimerStyle;
+  /** Index into RANDOM_PALETTE; ignored unless style === "random". */
   paletteIndex?: number;
 }
 
@@ -74,8 +76,8 @@ export function renderTimerImage(opts: TimerImageOptions): Buffer {
 
   if (opts.style === "hellokitty") {
     renderHelloKitty(ctx, opts);
-  } else if (opts.style === "kuromie") {
-    renderKuromie(ctx, opts);
+  } else if (opts.style === "chromie") {
+    renderChromie(ctx, opts);
   } else {
     renderNeon(ctx, opts);
   }
@@ -87,6 +89,7 @@ export function renderTimerImage(opts: TimerImageOptions): Buffer {
 
 function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   const isBreak = opts.phase === "break";
+  // In break phase always force a calm cyan look so user can tell the phase apart.
   let accent: string;
   let accentSoft: string;
   if (isBreak) {
@@ -98,6 +101,7 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
     accentSoft = RANDOM_PALETTE[idx]!.accentSoft;
   }
 
+  // background gradient
   const bg = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
   bg.addColorStop(0, "#08020c");
   bg.addColorStop(1, "#1a0a1f");
@@ -107,6 +111,7 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   const cx = WIDTH / 2;
   const cy = HEIGHT / 2;
 
+  // decorative spirograph-like ellipses
   ctx.save();
   ctx.translate(cx, cy);
   ctx.strokeStyle = accentSoft;
@@ -122,6 +127,7 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   }
   ctx.restore();
 
+  // soft outer glow
   ctx.save();
   ctx.globalAlpha = 0.18;
   const glow = ctx.createRadialGradient(cx, cy, 40, cx, cy, 420);
@@ -131,6 +137,7 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
   ctx.restore();
 
+  // small "TIMER" label
   ctx.save();
   ctx.fillStyle = accent;
   ctx.shadowColor = accent;
@@ -141,6 +148,7 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   ctx.fillText("TIMER", cx, 60);
   ctx.restore();
 
+  // main time text
   const timeText = formatTime(opts.remainingSeconds);
   ctx.save();
   ctx.fillStyle = accent;
@@ -156,6 +164,7 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   ctx.fillText(timeText, cx, cy + 10);
   ctx.restore();
 
+  // phase label
   ctx.save();
   ctx.fillStyle = "#f5d0fe";
   ctx.globalAlpha = 0.85;
@@ -171,133 +180,78 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
 function renderHelloKitty(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   const isBreak = opts.phase === "break";
 
-  // background: soft pink stripes
+  // background: soft pink → white
   const bg = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  bg.addColorStop(0, "#ffe0f0");
-  bg.addColorStop(0.5, "#fff0f8");
-  bg.addColorStop(1, "#ffd6ec");
+  bg.addColorStop(0, "#ffd6ec");
+  bg.addColorStop(1, "#fff5fa");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
-
-  // subtle polka dots
-  drawPolkaDots(ctx);
 
   // Scattered hearts
   drawHearts(ctx);
 
   // Bows in the corners
-  drawBow(ctx, 60, 60, 52);
-  drawBow(ctx, WIDTH - 60, 60, 52);
-  drawBow(ctx, 60, HEIGHT - 60, 38);
-  drawBow(ctx, WIDTH - 60, HEIGHT - 60, 38);
+  drawBow(ctx, 70, 70, 50);
+  drawBow(ctx, WIDTH - 70, 70, 50);
 
   const cx = WIDTH / 2;
   const cy = HEIGHT / 2;
 
-  // Kitty faces on sides
-  drawKittyFace(ctx, 108, cy + 20, 72);
-  drawKittyFace(ctx, WIDTH - 108, cy + 20, 72);
-
-  // Decorative top border
-  ctx.save();
-  ctx.fillStyle = "#ff5da8";
-  ctx.fillRect(0, 0, WIDTH, 8);
-  ctx.fillRect(0, HEIGHT - 8, WIDTH, 8);
-  ctx.restore();
+  // Cute kitty face on the side
+  drawKittyFace(ctx, 110, cy + 30, 70);
+  drawKittyFace(ctx, WIDTH - 110, cy + 30, 70);
 
   // Header
   ctx.save();
-  ctx.fillStyle = "#c2185b";
-  ctx.shadowColor = "#ff85b3";
-  ctx.shadowBlur = 8;
-  ctx.font = `bold 26px "${FONT_FAMILY}", sans-serif`;
+  ctx.fillStyle = "#d6336c";
+  ctx.font = `bold 28px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("♡ HELLO KITTY TIMER ♡", cx, 42);
+  ctx.fillText("♡ HELLO KITTY TIMER ♡", cx, 50);
   ctx.restore();
 
-  // Star sparkles near header
-  drawSparkles(ctx, cx, 42);
-
-  // Time text with soft drop shadow
+  // Time text
   const timeText = formatTime(opts.remainingSeconds);
   ctx.save();
-  // shadow
-  ctx.fillStyle = "#ffb3d1";
-  ctx.font = `bold 128px "${FONT_FAMILY}", sans-serif`;
+  // soft shadow
+  ctx.fillStyle = "#ffffff";
+  ctx.font = `bold 130px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(timeText, cx + 4, cy + 14);
-  // main color
+  ctx.fillText(timeText, cx + 3, cy + 13);
   ctx.fillStyle = "#e91e63";
   ctx.fillText(timeText, cx, cy + 10);
-  // highlight
-  ctx.fillStyle = "#ffffff";
-  ctx.globalAlpha = 0.3;
-  ctx.fillText(timeText, cx - 2, cy + 6);
   ctx.restore();
 
-  // Phase label with bow decoration
+  // Phase label
   ctx.save();
-  ctx.fillStyle = "#880e4f";
+  ctx.fillStyle = "#a61e4d";
   ctx.font = `bold 22px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(
     isBreak ? "♡ BREAK TIME ♡" : "♡ FOCUS TIME ♡",
     cx,
-    HEIGHT - 30,
+    HEIGHT - 32,
   );
-  ctx.restore();
-}
-
-function drawPolkaDots(ctx: SKRSContext2D): void {
-  const dots = [
-    { x: 30, y: 30, r: 6 }, { x: 200, y: 15, r: 5 }, { x: 400, y: 20, r: 7 },
-    { x: 600, y: 10, r: 5 }, { x: 760, y: 35, r: 6 }, { x: 25, y: 180, r: 5 },
-    { x: 775, y: 200, r: 6 }, { x: 20, y: 330, r: 7 }, { x: 790, y: 320, r: 5 },
-    { x: 350, y: 340, r: 5 }, { x: 500, y: 345, r: 6 }, { x: 150, y: 350, r: 5 },
-  ];
-  ctx.save();
-  ctx.globalAlpha = 0.25;
-  ctx.fillStyle = "#ff5da8";
-  for (const d of dots) {
-    ctx.beginPath();
-    ctx.arc(d.x, d.y, d.r, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.restore();
-}
-
-function drawSparkles(ctx: SKRSContext2D, cx: number, cy: number): void {
-  const positions = [cx - 230, cx + 230];
-  ctx.save();
-  ctx.fillStyle = "#ff5da8";
-  ctx.font = "16px sans-serif";
-  ctx.textBaseline = "middle";
-  ctx.textAlign = "center";
-  for (const x of positions) {
-    ctx.fillText("✦", x, cy);
-  }
   ctx.restore();
 }
 
 function drawHearts(ctx: SKRSContext2D): void {
   const hearts = [
-    { x: 50, y: 190, s: 14, a: 0.4 },
-    { x: 155, y: 265, s: 18, a: 0.35 },
-    { x: 230, y: 120, s: 12, a: 0.4 },
-    { x: 370, y: 85, s: 16, a: 0.3 },
-    { x: 555, y: 265, s: 20, a: 0.35 },
-    { x: 645, y: 145, s: 14, a: 0.4 },
-    { x: 725, y: 235, s: 12, a: 0.4 },
-    { x: 475, y: 300, s: 16, a: 0.3 },
-    { x: 310, y: 310, s: 10, a: 0.35 },
+    { x: 60, y: 200, s: 16, a: 0.55 },
+    { x: 160, y: 270, s: 20, a: 0.45 },
+    { x: 240, y: 130, s: 14, a: 0.5 },
+    { x: 380, y: 90, s: 18, a: 0.4 },
+    { x: 560, y: 270, s: 22, a: 0.4 },
+    { x: 640, y: 150, s: 16, a: 0.55 },
+    { x: 720, y: 240, s: 14, a: 0.5 },
+    { x: 480, y: 305, s: 18, a: 0.4 },
   ];
   for (const h of hearts) {
     ctx.save();
     ctx.globalAlpha = h.a;
-    ctx.fillStyle = "#ff5da8";
+    ctx.fillStyle = "#ff85b3";
     drawHeart(ctx, h.x, h.y, h.s);
     ctx.restore();
   }
@@ -317,13 +271,16 @@ function drawHeart(ctx: SKRSContext2D, x: number, y: number, size: number): void
 function drawBow(ctx: SKRSContext2D, x: number, y: number, size: number): void {
   ctx.save();
   ctx.translate(x, y);
+  // left loop
   ctx.fillStyle = "#ff5da8";
   ctx.beginPath();
   ctx.ellipse(-size * 0.45, 0, size * 0.45, size * 0.32, -0.25, 0, Math.PI * 2);
   ctx.fill();
+  // right loop
   ctx.beginPath();
   ctx.ellipse(size * 0.45, 0, size * 0.45, size * 0.32, 0.25, 0, Math.PI * 2);
   ctx.fill();
+  // center knot
   ctx.fillStyle = "#e83e8c";
   ctx.beginPath();
   ctx.ellipse(0, 0, size * 0.16, size * 0.22, 0, 0, Math.PI * 2);
@@ -331,7 +288,12 @@ function drawBow(ctx: SKRSContext2D, x: number, y: number, size: number): void {
   ctx.restore();
 }
 
-function drawKittyFace(ctx: SKRSContext2D, x: number, y: number, size: number): void {
+function drawKittyFace(
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  size: number,
+): void {
   ctx.save();
   ctx.translate(x, y);
 
@@ -350,63 +312,40 @@ function drawKittyFace(ctx: SKRSContext2D, x: number, y: number, size: number): 
   ctx.closePath();
   ctx.fill();
 
-  // inner ear pink
-  ctx.fillStyle = "#ffb3d1";
-  ctx.beginPath();
-  ctx.moveTo(-size * 0.55, -size * 0.38);
-  ctx.lineTo(-size * 0.75, -size * 0.82);
-  ctx.lineTo(-size * 0.32, -size * 0.58);
-  ctx.closePath();
-  ctx.fill();
-  ctx.beginPath();
-  ctx.moveTo(size * 0.55, -size * 0.38);
-  ctx.lineTo(size * 0.75, -size * 0.82);
-  ctx.lineTo(size * 0.32, -size * 0.58);
-  ctx.closePath();
-  ctx.fill();
-
   // head
   ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#ffb3d1";
-  ctx.lineWidth = 2.5;
+  ctx.strokeStyle = "#e0a3c0";
+  ctx.lineWidth = 2;
   ctx.beginPath();
-  ctx.ellipse(0, 0, size * 0.95, size * 0.8, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, 0, size * 0.95, size * 0.78, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.stroke();
 
   // bow on left ear area
-  drawBow(ctx, -size * 0.55, -size * 0.58, size * 0.52);
+  drawBow(ctx, -size * 0.55, -size * 0.55, size * 0.55);
 
-  // eyes (oval)
+  // eyes
   ctx.fillStyle = "#1a1a1a";
   ctx.beginPath();
-  ctx.ellipse(-size * 0.3, size * 0.04, size * 0.08, size * 0.12, 0, 0, Math.PI * 2);
+  ctx.ellipse(-size * 0.32, size * 0.05, size * 0.07, size * 0.11, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.beginPath();
-  ctx.ellipse(size * 0.3, size * 0.04, size * 0.08, size * 0.12, 0, 0, Math.PI * 2);
-  ctx.fill();
-  // eye shine
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.27, size * 0.0, size * 0.025, size * 0.035, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.33, size * 0.0, size * 0.025, size * 0.035, 0, 0, Math.PI * 2);
+  ctx.ellipse(size * 0.32, size * 0.05, size * 0.07, size * 0.11, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // nose
-  ctx.fillStyle = "#f5a623";
+  ctx.fillStyle = "#f5b942";
   ctx.beginPath();
-  ctx.ellipse(0, size * 0.26, size * 0.09, size * 0.065, 0, 0, Math.PI * 2);
+  ctx.ellipse(0, size * 0.25, size * 0.08, size * 0.06, 0, 0, Math.PI * 2);
   ctx.fill();
 
   // whiskers
-  ctx.strokeStyle = "#aaa";
-  ctx.lineWidth = 1.2;
+  ctx.strokeStyle = "#888";
+  ctx.lineWidth = 1.5;
   for (const dir of [-1, 1]) {
-    for (const yo of [-0.03, 0.12, 0.27]) {
+    for (const yo of [-0.05, 0.1, 0.25]) {
       ctx.beginPath();
-      ctx.moveTo(dir * size * 0.42, size * (0.1 + yo));
+      ctx.moveTo(dir * size * 0.45, size * (0.1 + yo));
       ctx.lineTo(dir * size * 0.95, size * (0.05 + yo));
       ctx.stroke();
     }
@@ -415,364 +354,103 @@ function drawKittyFace(ctx: SKRSContext2D, x: number, y: number, size: number): 
   ctx.restore();
 }
 
-// ---------------- KUROMIE STYLE (Sakura / Kimono) ----------------
+// ---------------- CHROMIE (CHROME / METALLIC) STYLE ----------------
 
-function renderKuromie(ctx: SKRSContext2D, opts: TimerImageOptions): void {
+function renderChromie(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   const isBreak = opts.phase === "break";
-  const cx = WIDTH / 2;
-  const cy = HEIGHT / 2;
 
-  // Soft pink background — like the Kuromi sakura image
+  // base background: dark steel
   const bg = ctx.createLinearGradient(0, 0, 0, HEIGHT);
-  bg.addColorStop(0, "#ffc8de");
-  bg.addColorStop(0.5, "#ffdaea");
-  bg.addColorStop(1, "#ffb8d4");
+  bg.addColorStop(0, "#0b1220");
+  bg.addColorStop(0.5, "#1f2937");
+  bg.addColorStop(1, "#0b1220");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
-  // Large blurry sakura blossoms in background
-  drawSakuraBg(ctx);
-
-  // Small butterflies / hummingbirds scattered
-  drawButterflies(ctx);
-
-  // Decorative border — thin pink
+  // diagonal metallic shine bars
   ctx.save();
-  ctx.strokeStyle = "#e91e8c";
+  ctx.globalCompositeOperation = "lighter";
+  for (let i = -2; i < 8; i++) {
+    const grad = ctx.createLinearGradient(i * 120, 0, i * 120 + 90, HEIGHT);
+    grad.addColorStop(0, "rgba(255,255,255,0)");
+    grad.addColorStop(0.5, "rgba(180,200,220,0.18)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(i * 120, 0, 90, HEIGHT);
+  }
+  ctx.restore();
+
+  const cx = WIDTH / 2;
+  const cy = HEIGHT / 2;
+
+  // chrome plate behind text
+  ctx.save();
+  const plate = ctx.createLinearGradient(0, cy - 90, 0, cy + 90);
+  plate.addColorStop(0, "#e6ecf2");
+  plate.addColorStop(0.5, "#7a8696");
+  plate.addColorStop(1, "#cfd6df");
+  ctx.fillStyle = plate;
+  roundRect(ctx, 70, cy - 95, WIDTH - 140, 170, 24);
+  ctx.fill();
+  ctx.strokeStyle = "#1a1f2a";
   ctx.lineWidth = 3;
-  ctx.globalAlpha = 0.35;
-  ctx.strokeRect(8, 8, WIDTH - 16, HEIGHT - 16);
+  ctx.stroke();
   ctx.restore();
 
-  // Decorative top/bottom bar
+  // header
   ctx.save();
-  ctx.fillStyle = "#e91e8c";
-  ctx.globalAlpha = 0.3;
-  ctx.fillRect(0, 0, WIDTH, 6);
-  ctx.fillRect(0, HEIGHT - 6, WIDTH, 6);
-  ctx.restore();
-
-  // Header
-  ctx.save();
-  ctx.fillStyle = "#7b003c";
-  ctx.font = `bold 26px "${FONT_FAMILY}", sans-serif`;
+  ctx.fillStyle = "#cfd6df";
+  ctx.shadowColor = "#000";
+  ctx.shadowBlur = 6;
+  ctx.font = `bold 28px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("✿ Girl Style Timer ✿", cx, 42);
+  ctx.fillText("⚙ CHROMIE TIMER ⚙", cx, 50);
   ctx.restore();
 
-  // Time text — dark on pink
+  // time text — silver chrome gradient
   const timeText = formatTime(opts.remainingSeconds);
   ctx.save();
-  // soft drop shadow
-  ctx.fillStyle = "#f090b8";
-  ctx.font = `bold 128px "${FONT_FAMILY}", sans-serif`;
+  const textGrad = ctx.createLinearGradient(0, cy - 70, 0, cy + 70);
+  textGrad.addColorStop(0, "#ffffff");
+  textGrad.addColorStop(0.45, "#9aa4b2");
+  textGrad.addColorStop(0.55, "#3b4452");
+  textGrad.addColorStop(1, "#dde3ea");
+  ctx.fillStyle = textGrad;
+  ctx.font = `bold 130px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(timeText, cx + 4, cy + 14);
-  // main color: deep dark pink / almost black
-  ctx.fillStyle = "#1a0010";
-  ctx.fillText(timeText, cx, cy + 10);
-  // hot pink highlight
-  ctx.fillStyle = "#e91e8c";
-  ctx.globalAlpha = 0.2;
-  ctx.fillText(timeText, cx - 2, cy + 7);
+  ctx.fillText(timeText, cx, cy + 5);
+
+  // outline
+  ctx.lineWidth = 3;
+  ctx.strokeStyle = "#0f1422";
+  ctx.strokeText(timeText, cx, cy + 5);
   ctx.restore();
 
-  // Phase label
+  // phase label
   ctx.save();
-  ctx.fillStyle = "#7b003c";
+  ctx.fillStyle = "#cfd6df";
   ctx.font = `bold 22px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(
-    isBreak ? "✿ BREAK TIME ✿" : "✿ FOCUS TIME ✿",
-    cx,
-    HEIGHT - 30,
-  );
+  ctx.fillText(isBreak ? "■ BREAK TIME ■" : "■ FOCUS TIME ■", cx, HEIGHT - 32);
   ctx.restore();
 }
 
-function drawSakuraBg(ctx: SKRSContext2D): void {
-  const blossoms = [
-    { x: 55,  y: 55,  r: 32, a: 0.22 },
-    { x: 740, y: 45,  r: 28, a: 0.18 },
-    { x: 30,  y: 295, r: 26, a: 0.2  },
-    { x: 760, y: 300, r: 30, a: 0.18 },
-    { x: 390, y: 330, r: 22, a: 0.15 },
-    { x: 200, y: 30,  r: 20, a: 0.16 },
-    { x: 600, y: 320, r: 24, a: 0.16 },
-  ];
-  for (const b of blossoms) {
-    drawSakuraFlower(ctx, b.x, b.y, b.r, b.a);
-  }
-  // small scattered petals
-  const petals = [
-    { x: 140, y: 280, r: 10, a: 0.3 },
-    { x: 320, y: 50,  r: 12, a: 0.28 },
-    { x: 480, y: 30,  r: 9,  a: 0.25 },
-    { x: 660, y: 140, r: 11, a: 0.28 },
-    { x: 180, y: 140, r: 8,  a: 0.25 },
-    { x: 580, y: 200, r: 10, a: 0.22 },
-    { x: 430, y: 300, r: 9,  a: 0.25 },
-  ];
-  for (const p of petals) {
-    drawSakuraFlower(ctx, p.x, p.y, p.r, p.a);
-  }
-}
-
-function drawSakuraFlower(ctx: SKRSContext2D, x: number, y: number, r: number, alpha: number): void {
-  ctx.save();
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = "#ff85b3";
-  for (let i = 0; i < 5; i++) {
-    const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
-    const px = x + Math.cos(angle) * r * 0.55;
-    const py = y + Math.sin(angle) * r * 0.55;
-    ctx.beginPath();
-    ctx.ellipse(px, py, r * 0.52, r * 0.35, angle, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  // center
-  ctx.fillStyle = "#ffcce0";
-  ctx.globalAlpha = alpha * 1.2;
+function roundRect(
+  ctx: SKRSContext2D,
+  x: number,
+  y: number,
+  w: number,
+  h: number,
+  r: number,
+): void {
   ctx.beginPath();
-  ctx.arc(x, y, r * 0.28, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawButterflies(ctx: SKRSContext2D): void {
-  const items = [
-    { x: 230, y: 70,  s: 14, c: "#b39ddb", a: 0.75 },
-    { x: 555, y: 60,  s: 12, c: "#90caf9", a: 0.7  },
-    { x: 160, y: 220, s: 11, c: "#f48fb1", a: 0.65 },
-    { x: 640, y: 230, s: 13, c: "#ce93d8", a: 0.7  },
-    { x: 340, y: 310, s: 10, c: "#80deea", a: 0.6  },
-    { x: 510, y: 290, s: 11, c: "#b39ddb", a: 0.65 },
-  ];
-  for (const b of items) {
-    drawButterfly(ctx, b.x, b.y, b.s, b.c, b.a);
-  }
-}
-
-function drawButterfly(ctx: SKRSContext2D, x: number, y: number, size: number, color: string, alpha: number): void {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = color;
-  // upper wings
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.55, -size * 0.35, size * 0.5, size * 0.32, -0.5, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.55, -size * 0.35, size * 0.5, size * 0.32, 0.5, 0, Math.PI * 2);
-  ctx.fill();
-  // lower wings (smaller)
-  ctx.globalAlpha = alpha * 0.75;
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.4, size * 0.2, size * 0.32, size * 0.2, 0.3, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.4, size * 0.2, size * 0.32, size * 0.2, -0.3, 0, Math.PI * 2);
-  ctx.fill();
-  // body
-  ctx.globalAlpha = alpha;
-  ctx.fillStyle = "#111111";
-  ctx.beginPath();
-  ctx.ellipse(0, 0, size * 0.08, size * 0.42, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawKuromiKimono(ctx: SKRSContext2D, x: number, y: number, size: number): void {
-  ctx.save();
-  ctx.translate(x, y);
-
-  // Kimono body — black with pink flower pattern
-  // skirt/kimono lower part
-  ctx.fillStyle = "#111111";
-  ctx.beginPath();
-  ctx.moveTo(-size * 0.55, size * 0.38);
-  ctx.lineTo(-size * 0.68, size * 1.28);
-  ctx.lineTo(size * 0.68, size * 1.28);
-  ctx.lineTo(size * 0.55, size * 0.38);
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
   ctx.closePath();
-  ctx.fill();
-
-  // Pink flower dots on kimono (like in the image)
-  const flowerPositions = [
-    { fx: -size * 0.3, fy: size * 0.65, fr: size * 0.09 },
-    { fx: size * 0.28, fy: size * 0.7,  fr: size * 0.08 },
-    { fx: -size * 0.1, fy: size * 0.95, fr: size * 0.09 },
-    { fx: size * 0.38, fy: size * 1.0,  fr: size * 0.08 },
-    { fx: -size * 0.42, fy: size * 1.05, fr: size * 0.07 },
-    { fx: size * 0.08, fy: size * 1.18, fr: size * 0.08 },
-    { fx: -size * 0.22, fy: size * 1.18, fr: size * 0.07 },
-  ];
-  for (const f of flowerPositions) {
-    drawTinyFlower(ctx, f.fx, f.fy, f.fr);
-  }
-
-  // kimono obi (belt) — thin white/pink band
-  ctx.fillStyle = "#ffc0d8";
-  ctx.beginPath();
-  ctx.rect(-size * 0.52, size * 0.4, size * 1.04, size * 0.14);
-  ctx.fill();
-
-  // torso
-  ctx.fillStyle = "#111111";
-  ctx.beginPath();
-  ctx.ellipse(0, size * 0.28, size * 0.44, size * 0.28, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // arms
-  ctx.fillStyle = "#111111";
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.52, size * 0.38, size * 0.14, size * 0.28, -0.25, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.52, size * 0.38, size * 0.14, size * 0.28, 0.25, 0, Math.PI * 2);
-  ctx.fill();
-
-  // BLACK HOOD (Kuromi's signature)
-  ctx.fillStyle = "#0d0010";
-  ctx.strokeStyle = "#3b003c";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(-size * 0.85, size * 0.06);
-  ctx.bezierCurveTo(-size * 0.92, -size * 0.52, -size * 0.26, -size * 1.28, 0, -size * 1.35);
-  ctx.bezierCurveTo(size * 0.26, -size * 1.28, size * 0.92, -size * 0.52, size * 0.85, size * 0.06);
-  ctx.closePath();
-  ctx.fill();
-  ctx.stroke();
-
-  // pink skull on hood
-  drawPinkSkullSmall(ctx, 0, -size * 0.7, size * 0.28);
-
-  // WHITE FACE
-  ctx.fillStyle = "#ffffff";
-  ctx.strokeStyle = "#ffb3cc";
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.ellipse(0, size * 0.06, size * 0.6, size * 0.54, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-
-  // eye patch (left eye - Kuromi has an eye patch!)
-  ctx.fillStyle = "#111111";
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.22, size * 0.04, size * 0.14, size * 0.1, -0.15, 0, Math.PI * 2);
-  ctx.fill();
-  // patch string
-  ctx.strokeStyle = "#111111";
-  ctx.lineWidth = 1.5;
-  ctx.beginPath();
-  ctx.moveTo(-size * 0.08, size * 0.04);
-  ctx.lineTo(size * 0.06, size * 0.04);
-  ctx.stroke();
-
-  // right eye — winking / cute oval
-  ctx.fillStyle = "#1a0028";
-  ctx.beginPath();
-  ctx.ellipse(size * 0.24, size * 0.05, size * 0.1, size * 0.145, 0.08, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.ellipse(size * 0.28, size * 0.01, size * 0.028, size * 0.04, 0, 0, Math.PI * 2);
-  ctx.fill();
-
-  // rosy cheeks
-  ctx.save();
-  ctx.globalAlpha = 0.28;
-  ctx.fillStyle = "#ff69b4";
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.36, size * 0.2, size * 0.13, size * 0.08, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.38, size * 0.2, size * 0.13, size * 0.08, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-
-  // small smirk
-  ctx.strokeStyle = "#1a0028";
-  ctx.lineWidth = 1.8;
-  ctx.beginPath();
-  ctx.arc(size * 0.06, size * 0.26, size * 0.1, 0.3, Math.PI - 0.3);
-  ctx.stroke();
-
-  // purple bow on left side of hood
-  drawKuromieBow(ctx, -size * 0.56, -size * 0.08, size * 0.42);
-
-  ctx.restore();
 }
-
-function drawTinyFlower(ctx: SKRSContext2D, x: number, y: number, r: number): void {
-  ctx.save();
-  ctx.fillStyle = "#ff85b3";
-  ctx.globalAlpha = 0.85;
-  for (let i = 0; i < 5; i++) {
-    const angle = (Math.PI * 2 / 5) * i;
-    const px = x + Math.cos(angle) * r * 0.65;
-    const py = y + Math.sin(angle) * r * 0.65;
-    ctx.beginPath();
-    ctx.ellipse(px, py, r * 0.42, r * 0.3, angle, 0, Math.PI * 2);
-    ctx.fill();
-  }
-  ctx.fillStyle = "#ffffff";
-  ctx.globalAlpha = 0.9;
-  ctx.beginPath();
-  ctx.arc(x, y, r * 0.25, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawPinkSkullSmall(ctx: SKRSContext2D, x: number, y: number, size: number): void {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.globalAlpha = 0.9;
-  ctx.fillStyle = "#ff5da8";
-  ctx.beginPath();
-  ctx.ellipse(0, -size * 0.08, size * 0.5, size * 0.46, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(0, size * 0.26, size * 0.32, size * 0.19, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#ffffff";
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.17, -size * 0.1, size * 0.11, size * 0.13, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.17, -size * 0.1, size * 0.11, size * 0.13, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#e0408a";
-  ctx.beginPath();
-  ctx.ellipse(0, size * 0.1, size * 0.055, size * 0.065, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.beginPath();
-  ctx.rect(-size * 0.07, size * 0.19, size * 0.14, size * 0.13);
-  ctx.fill();
-  ctx.restore();
-}
-
-function drawKuromieBow(ctx: SKRSContext2D, x: number, y: number, size: number): void {
-  ctx.save();
-  ctx.translate(x, y);
-  ctx.fillStyle = "#7c3aed";
-  ctx.strokeStyle = "#9333ea";
-  ctx.lineWidth = 1.2;
-  ctx.beginPath();
-  ctx.ellipse(-size * 0.42, 0, size * 0.42, size * 0.27, -0.28, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.beginPath();
-  ctx.ellipse(size * 0.42, 0, size * 0.42, size * 0.27, 0.28, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.stroke();
-  ctx.fillStyle = "#9333ea";
-  ctx.beginPath();
-  ctx.ellipse(0, 0, size * 0.13, size * 0.18, 0, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.restore();
-}
-
