@@ -38,7 +38,7 @@ function formatTime(totalSeconds: number): string {
   return `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")}`;
 }
 
-export type TimerStyle = "random" | "hellokitty" | "kuromi" | "kaitokid" | "gojo";
+export type TimerStyle = "random" | "hellokitty" | "kuromi" | "kaitokid" | "gojo" | "mylittlepony";
 
 export interface ColorPair {
   accent: string;
@@ -87,6 +87,13 @@ export async function renderTimerImage(opts: TimerImageOptions): Promise<Buffer>
       textShadow: "#ff69b4",
       accentColor: "#111111",
       label: "🖤 KUROMI TIMER 🖤",
+    }); break;
+    case "mylittlepony": await renderCharacterImage(ctx, opts, "mylittlepony.png", {
+      overlayColor: "rgba(180, 80, 130, 0.22)",
+      textColor: "#6d1a6d",
+      textShadow: "#ff9edb",
+      accentColor: "#9c1a7a",
+      label: "🦄 MY LITTLE PONY TIMER 🦄",
     }); break;
     case "kaitokid":   await renderCharacterImage(ctx, opts, "kaitokid.png", {
       overlayColor: "rgba(10, 20, 60, 0.45)",
