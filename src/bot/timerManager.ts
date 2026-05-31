@@ -13,7 +13,6 @@ interface TimerState {
   studyMs: number;
   breakMs: number;
   style: TimerStyle;
-  rotate: boolean;
   phase: "study" | "break";
   phaseEnd: number;
   cycleCount: number;
@@ -31,26 +30,19 @@ interface TimerState {
 
 const activeTimers = new Map<string, TimerState>();
 
-function styleColor(style: TimerStyle, rotate: boolean, cycleCount: number): number {
-  const effective = rotate
-    ? (["random", "hellokitty", "kuromi", "kaitokid", "gojo", "mylittlepony", "anime"] as TimerStyle[])[
-        cycleCount % 7
-      ]
-    : style;
-  switch (effective) {
-    case "hellokitty":    return 0xff69b4;
-    case "kuromi":        return 0x9b59b6;
-    case "kaitokid":      return 0x2c3e7a;
-    case "gojo":          return 0x7c3aed;
-    case "mylittlepony":  return 0xff9ecd;
-    case "anime":         return 0x00bfff;
-    default:              return 0x00ffff;
+function styleColor(style: TimerStyle): number {
+  switch (style) {
+    case "hellokitty":   return 0xff69b4;
+    case "kuromi":       return 0x9b59b6;
+    case "kaitokid":     return 0x2c3e7a;
+    case "gojo":         return 0x7c3aed;
+    case "mylittlepony": return 0xff9ecd;
+    case "anime":        return 0x00bfff;
+    default:             return 0x00ffff;
   }
 }
 
-async function buildAttachment(
-  state: TimerState,
-): Promise<{ attachment: AttachmentBuilder; embed: EmbedBuilder }> {
+async function buildAttachment(state: TimerState): Promise<{ attachment: AttachmentBuilder; embed: EmbedBuilder }> {
   const now = Date.now();
   const remaining = Math.max(0, state.phaseEnd - now);
   const totalMs = state.phase === "study" ? state.studyMs : state.breakMs;
@@ -62,7 +54,6 @@ async function buildAttachment(
     style: state.style,
     cycleCount: state.cycleCount,
     paletteIndex: state.paletteIndex,
-    rotate: state.rotate,
   });
 
   const attachment = new AttachmentBuilder(imgBuf, { name: "timer.png" });
@@ -73,7 +64,7 @@ async function buildAttachment(
   const timeStr = `${mins}:${secs.toString().padStart(2, "0")}`;
 
   const embed = new EmbedBuilder()
-    .setColor(styleColor(state.style, state.rotate, state.cycleCount))
+    .setColor(styleColor(state.style))
     .setTitle(phaseLabel)
     .setDescription(`**Time remaining:** ${timeStr}`)
     .setImage("attachment://timer.png")
@@ -82,20 +73,16 @@ async function buildAttachment(
   return { attachment, embed };
 }
 
-async function postTimerMessage(state: TimerState): Promise<void> {
+async function postTimerMessage(state: TimerState) {
   const channel = await state.interaction.client.channels.fetch(state.channelId);
   if (!channel?.isTextBased() || !("send" in channel)) return;
 
   const { attachment, embed } = await buildAttachment(state);
-  const msg = await (channel as any).send({
-    embeds: [embed],
-    files: [attachment],
-    components: [state.row],
-  });
+  const msg = await (channel as any).send({ embeds: [embed], files: [attachment], components: [state.row] });
   state.currentMessage = msg;
 }
 
-async function updateTimerMessage(state: TimerState): Promise<void> {
+async function updateTimerMessage(state: TimerState) {
   if (!state.currentMessage) return;
   try {
     const { attachment, embed } = await buildAttachment(state);
@@ -111,7 +98,7 @@ export function hasActiveTimer(channelId: string): boolean {
 
 export function stopTimer(
   channelId: string,
-  opts?: { stoppedById?: string; stoppedByName?: string; silent?: boolean },
+  opts?: { stoppedById?: string; stoppedByName?: string; silent?: boolean }
 ): boolean {
   const state = activeTimers.get(channelId);
   if (!state) return false;
@@ -130,18 +117,10 @@ export function stopTimer(
       .setTitle("⏹️ Timer Stopped")
       .setDescription(`Study session ended.${whoStopped}`)
       .setFooter({ text: `Completed cycles: ${state.cycleCount}` });
-    state.currentMessage
-      .edit({ embeds: [finalEmbed], files: [], components: [] })
-      .catch(() => {});
+    state.currentMessage.edit({ embeds: [finalEmbed], files: [], components: [] }).catch(() => {});
   }
 
   return true;
-}
-
-export function shutdownAllTimers(): void {
-  for (const [channelId] of activeTimers) {
-    stopTimer(channelId, { silent: true });
-  }
 }
 
 export async function startTimer(opts: {
@@ -149,42 +128,35 @@ export async function startTimer(opts: {
   studyMinutes: number;
   breakMinutes: number;
   style: TimerStyle;
-  rotate: boolean;
   interaction: ChatInputCommandInteraction;
   row: ActionRowBuilder<ButtonBuilder>;
-}): Promise<void> {
+}) {
   const state: TimerState = {
-    studyMs:  opts.studyMinutes * 60000,
-    breakMs:  opts.breakMinutes * 60000,
-    style:    opts.style,
-    rotate:   opts.rotate,
-    phase:    "study",
+    studyMs: opts.studyMinutes * 60000,
+    breakMs: opts.breakMinutes * 60000,
+    style: opts.style,
+    phase: "study",
     phaseEnd: Date.now() + opts.studyMinutes * 60000,
-    cycleCount:   0,
+    cycleCount: 0,
     paletteIndex: Math.floor(Math.random() * 100),
-    intervalId:        undefined as any,
-    repostIntervalId:  undefined as any,
-    channelId:   opts.channelId,
+    intervalId: undefined as any,
+    repostIntervalId: undefined as any,
+    channelId: opts.channelId,
     interaction: opts.interaction,
-    row:         opts.row,
+    row: opts.row,
     currentMessage: null,
-    stopped:        false,
+    stopped: false,
   };
 
   activeTimers.set(opts.channelId, state);
 
   const { attachment, embed } = await buildAttachment(state);
-  const replyMsg = await opts.interaction.editReply({
-    embeds: [embed],
-    files: [attachment],
-    components: [opts.row],
-  });
+  const replyMsg = await opts.interaction.editReply({ embeds: [embed], files: [attachment], components: [opts.row] });
   state.currentMessage = replyMsg as Message;
 
   state.intervalId = setInterval(async () => {
     if (state.stopped) return;
     const now = Date.now();
-
     if (now >= state.phaseEnd) {
       if (state.phase === "study") {
         state.phase = "break";
@@ -195,17 +167,12 @@ export async function startTimer(opts: {
         state.cycleCount++;
       }
     }
-
     state.paletteIndex++;
-    await updateTimerMessage(state).catch((e) =>
-      logger.error(e, "update error"),
-    );
+    await updateTimerMessage(state).catch(e => logger.error(e, "update error"));
   }, 30000);
 
   state.repostIntervalId = setInterval(async () => {
     if (state.stopped) return;
-    await postTimerMessage(state).catch((e) =>
-      logger.error(e, "repost error"),
-    );
+    await postTimerMessage(state).catch(e => logger.error(e, "repost error"));
   }, 5 * 60000);
 }
