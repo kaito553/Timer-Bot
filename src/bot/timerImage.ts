@@ -104,7 +104,7 @@ function renderHelloKitty(ctx: SKRSContext2D, opts: RenderOpts) {
   ctx.fillStyle = "#ff4d94";
   ctx.shadowColor = "#ff4d94"; ctx.shadowBlur = 8;
   ctx.textAlign = "center";
-  const label = opts.phase === "study" ? "🎀 وقت المذاكرة 🎀" : "🎀 وقت الاستراحة 🎀";
+  const label = opts.phase === "study" ? "🎀 Study Time 🎀" : "🎀 Break Time 🎀";
   ctx.fillText(label, 360, 80);
 
   const mins = Math.floor(opts.remainingMs / 60000);
@@ -121,7 +121,7 @@ function renderHelloKitty(ctx: SKRSContext2D, opts: RenderOpts) {
 
   ctx.font = `bold 22px "DejaVu", sans-serif`;
   ctx.fillStyle = "#c2185b"; ctx.shadowBlur = 0;
-  ctx.fillText(`دورة ${opts.cycleCount + 1}`, 360, 370);
+  ctx.fillText(`Cycle ${opts.cycleCount + 1}`, 360, 370);
 }
 
 function drawKittyFace(ctx: SKRSContext2D, cx: number, cy: number, r: number) {
@@ -212,7 +212,7 @@ async function renderCharacterImage(ctx: SKRSContext2D, opts: RenderOpts, imgFil
   ctx.fillStyle = charOpts.textColor; ctx.shadowBlur = 20;
   ctx.fillText(timeStr, 30, 250);
 
-  const phaseLabel = opts.phase === "study" ? "📚 وقت المذاكرة" : "☕ وقت البريك";
+  const phaseLabel = opts.phase === "study" ? "📚 Study Time" : "☕ Break Time";
   ctx.font = `bold 26px "DejaVu", sans-serif`;
   ctx.fillStyle = charOpts.accentColor; ctx.shadowColor = charOpts.accentColor; ctx.shadowBlur = 10;
   ctx.fillText(phaseLabel, 30, 305);
@@ -249,7 +249,7 @@ async function renderMLP(ctx: SKRSContext2D, opts: RenderOpts) {
   ctx.textAlign="left";
   ctx.font=`bold 24px "DejaVu", sans-serif`;
   ctx.fillStyle="#c2185b"; ctx.shadowColor="#ff69b4"; ctx.shadowBlur=10;
-  ctx.fillText(opts.phase==="study" ? "🦄 My Little Study Time 🌈" : "🌸 My Little Break Time 🌈", 40, 76);
+  ctx.fillText(opts.phase==="study" ? "🦄 Study Time 🌈" : "🌸 Break Time 🌈", 40, 76);
 
   const mins=Math.floor(opts.remainingMs/60000);
   const secs=Math.floor((opts.remainingMs%60000)/1000);
@@ -265,7 +265,7 @@ async function renderMLP(ctx: SKRSContext2D, opts: RenderOpts) {
 
   ctx.font=`bold 20px "DejaVu", sans-serif`;
   ctx.fillStyle="#c2185b"; ctx.shadowBlur=6;
-  ctx.fillText(`دورة ${opts.cycleCount+1} ✨`, 40, 315);
+  ctx.fillText(`Cycle ${opts.cycleCount+1} ✨`, 40, 315);
   ctx.shadowBlur=0;
 }
 

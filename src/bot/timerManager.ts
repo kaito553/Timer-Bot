@@ -37,6 +37,7 @@ function styleColor(style: TimerStyle): number {
     case "kaitokid":     return 0x2c3e7a;
     case "gojo":         return 0x7c3aed;
     case "mylittlepony": return 0xff9ecd;
+    case "anime":        return 0x00bfff;
     default:             return 0x00ffff;
   }
 }
@@ -57,7 +58,7 @@ async function buildAttachment(state: TimerState): Promise<{ attachment: Attachm
 
   const attachment = new AttachmentBuilder(imgBuf, { name: "timer.png" });
 
-  const phaseLabel = state.phase === "study" ? "📚 وقت المذاكرة" : "☕ وقت البريك";
+  const phaseLabel = state.phase === "study" ? "📚 Study Time" : "☕ Break Time";
   const mins = Math.floor(remaining / 60000);
   const secs = Math.floor((remaining % 60000) / 1000);
   const timeStr = `${mins}:${secs.toString().padStart(2, "0")}`;
@@ -65,9 +66,9 @@ async function buildAttachment(state: TimerState): Promise<{ attachment: Attachm
   const embed = new EmbedBuilder()
     .setColor(styleColor(state.style))
     .setTitle(phaseLabel)
-    .setDescription(`**الوقت المتبقي:** ${timeStr}`)
+    .setDescription(`**Time remaining:** ${timeStr}`)
     .setImage("attachment://timer.png")
-    .setFooter({ text: `دورة ${state.cycleCount + 1} • يتحدث كل 30 ثانية` });
+    .setFooter({ text: `Cycle ${state.cycleCount + 1} • Updates every 30 seconds` });
 
   return { attachment, embed };
 }
@@ -110,12 +111,12 @@ export function stopTimer(
   activeTimers.delete(channelId);
 
   if (!opts?.silent && state.currentMessage) {
-    const whoStopped = state.stoppedByName ? `\n⛔ وقّفه: **${state.stoppedByName}**` : "";
+    const whoStopped = state.stoppedByName ? `\nStopped by: **${state.stoppedByName}**` : "";
     const finalEmbed = new EmbedBuilder()
       .setColor(0xff4444)
-      .setTitle("⏹️ التايمر اتوقف")
-      .setDescription(`انتهت جلسة المذاكرة.${whoStopped}`)
-      .setFooter({ text: `دورات مكتملة: ${state.cycleCount}` });
+      .setTitle("⏹️ Timer Stopped")
+      .setDescription(`Study session ended.${whoStopped}`)
+      .setFooter({ text: `Completed cycles: ${state.cycleCount}` });
     state.currentMessage.edit({ embeds: [finalEmbed], files: [], components: [] }).catch(() => {});
   }
 
