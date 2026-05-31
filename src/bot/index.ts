@@ -304,7 +304,9 @@ export async function startBot(): Promise<void> {
 }
 
 // Aliases for compatibility with src/index.ts entry point
-export const initBot = startBot;
+export async function initBot(_opts?: unknown): Promise<void> {
+  return startBot();
+}
 export async function shutdownBot(_signal?: unknown): Promise<void> {
   shutdownAllTimers();
 }
