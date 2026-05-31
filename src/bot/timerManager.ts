@@ -74,7 +74,7 @@ async function buildAttachment(state: TimerState): Promise<{ attachment: Attachm
 
 async function postTimerMessage(state: TimerState) {
   const channel = await state.interaction.client.channels.fetch(state.channelId);
-  if (!channel?.isTextBased()) return;
+  if (!channel?.isTextBased() || !("send" in channel)) return;
 
   const { attachment, embed } = await buildAttachment(state);
   const msg = await channel.send({ embeds: [embed], files: [attachment], components: [state.row] });
