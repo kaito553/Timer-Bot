@@ -1,292 +1,180 @@
 import {
-  AttachmentBuilder,
-  ButtonBuilder,
-  ButtonStyle,
-  EmbedBuilder,
-  type Message,
-  type TextBasedChannel,
+  ChatInputCommandInteraction,
   ActionRowBuilder,
-  type APIEmbed,
-  ChannelType,
+  ButtonBuilder,
+  AttachmentBuilder,
+  EmbedBuilder,
+  Message,
 } from "discord.js";
-import {
-  renderTimerImage,
-  RANDOM_PALETTE,
-  type TimerStyle,
-} from "./timerImage.js";
 import { logger } from "../lib/logger.js";
+import { renderTimerImage, TimerStyle } from "./timerImage.js";
 
-const UPDATE_INTERVAL_MS = 30_000;
-const REPOST_INTERVAL_MS = 5 * 60 * 1000;
-
-type Phase = "study" | "break";
-
-interface ActiveTimer {
-  channelId: string;
-  guildId: string | null;
-  userId: string;
-  studyMinutes: number;
-  breakMinutes: number;
-  phase: Phase;
-  phaseEndsAt: number;
-  message: Message;
-  interval: NodeJS.Timeout;
-  lastRepostAt: number;
+interface TimerState {
+  studyMs: number;
+  breakMs: number;
   style: TimerStyle;
+  phase: "study" | "break";
+  phaseEnd: number;
+  cycleCount: number;
   paletteIndex: number;
-}
-
-const active = new Map<string, ActiveTimer>();
-
-function formatRemaining(seconds: number): string {
-  const raw = Math.max(0, Math.floor(seconds));
-  const safe = Math.floor(raw / 30) * 30;
-  const m = Math.floor(safe / 60);
-  const s = safe % 60;
-  if (m >= 60) {
-    const h = Math.floor(m / 60);
-    const mm = m % 60;
-    return `${String(h).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  }
-  return `${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-}
-
-function styleColor(t: ActiveTimer): number {
-  if (t.phase === "break") return 0x22d3ee;
-  if (t.style === "hellokitty") return 0xff5da8;
-  if (t.style === "kuromi")     return 0xe91e8c;
-  if (t.style === "mylittlepony") return 0xf472b6;
-  if (t.style === "kaitokid")   return 0xd4af37;
-  if (t.style === "gojo")       return 0x7c3aed;
-  const hex = RANDOM_PALETTE[t.paletteIndex % RANDOM_PALETTE.length]!.accent;
-  return parseInt(hex.slice(1), 16);
-}
-
-function buildEmbed(t: ActiveTimer, remainingSeconds: number): APIEmbed {
-  const isBreak = t.phase === "break";
-  const title = isBreak ? "☕ وقت البريك" : "📚 Focus Study Session";
-  const description = [
-    `📖 مدة المذاكرة: **${t.studyMinutes} دقيقة**`,
-    `☕ البريك: **${t.breakMinutes} دقيقة**`,
-    "",
-    `⏳ الوقت المتبقي`,
-    `**${formatRemaining(remainingSeconds)}**`,
-  ].join("\n");
-
-  return new EmbedBuilder()
-    .setTitle(title)
-    .setDescription(description)
-    .setColor(styleColor(t))
-    .setImage("attachment://timer.png")
-    .setTimestamp(new Date())
-    .toJSON();
-}
-
-function buildStopRow(): ActionRowBuilder<ButtonBuilder> {
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(
-    new ButtonBuilder()
-      .setCustomId("timer:stop")
-      .setLabel("⏹ إيقاف التايمر")
-      .setStyle(ButtonStyle.Danger),
-  );
-}
-
-async function buildAttachment(t: ActiveTimer, remainingSeconds: number): Promise<AttachmentBuilder> {
-  const buf = await renderTimerImage({
-    remainingSeconds,
-    phase: t.phase,
-    style: t.style,
-    paletteIndex: t.paletteIndex,
-  });
-  return new AttachmentBuilder(buf, { name: "timer.png" });
-}
-
-async function repostMessage(t: ActiveTimer, remainingSeconds: number): Promise<void> {
-  const channel = t.message.channel;
-  if (!channel.isSendable()) return;
-
-  if (t.style === "random") {
-    t.paletteIndex = (t.paletteIndex + 1) % RANDOM_PALETTE.length;
-  }
-
-  const attachment = await buildAttachment(t, remainingSeconds);
-  const embed = buildEmbed(t, remainingSeconds);
-  const newMessage = await channel.send({
-    embeds: [embed],
-    files: [attachment],
-    components: [buildStopRow()],
-  });
-
-  const oldMessage = t.message;
-  t.message = newMessage;
-  t.lastRepostAt = Date.now();
-
-  try { await oldMessage.delete(); } catch (err) {
-    logger.error({ err }, "Failed to delete previous timer message");
-  }
-}
-
-async function tick(channelId: string): Promise<void> {
-  const t = active.get(channelId);
-  if (!t) return;
-
-  const now = Date.now();
-  let remainingSeconds = Math.ceil((t.phaseEndsAt - now) / 1000);
-
-  if (remainingSeconds <= 0) {
-    if (t.phase === "study") {
-      t.phase = "break";
-      t.phaseEndsAt = now + t.breakMinutes * 60 * 1000;
-      remainingSeconds = Math.ceil((t.phaseEndsAt - now) / 1000);
-      try {
-        const channel = t.message.channel;
-        if (channel.isSendable()) {
-          await channel.send({ content: `<@${t.userId}> ⏰ خلصت مدة المذاكرة! ابدأ البريك (**${t.breakMinutes} دقيقة**) ☕` });
-        }
-      } catch (err) { logger.error({ err }, "Failed to send phase change message"); }
-      try { await repostMessage(t, remainingSeconds); } catch (err) {
-        logger.error({ err }, "Failed to repost timer at phase change");
-      }
-      return;
-    } else {
-      try {
-        const channel = t.message.channel;
-        if (channel.isSendable()) {
-          await channel.send({ content: `<@${t.userId}> ✅ خلص البريك! جلسة المذاكرة انتهت بنجاح. شغل تاني بـ \`/timer\`` });
-        }
-      } catch (err) { logger.error({ err }, "Failed to send completion message"); }
-      await stopTimer(channelId, { silent: true });
-      return;
-    }
-  }
-
-  if (Date.now() - t.lastRepostAt >= REPOST_INTERVAL_MS) {
-    try { await repostMessage(t, remainingSeconds); } catch (err) {
-      logger.error({ err, channelId }, "Failed to repost timer message");
-    }
-    return;
-  }
-
-  try {
-    const attachment = await buildAttachment(t, remainingSeconds);
-    const embed = buildEmbed(t, remainingSeconds);
-    await t.message.edit({ embeds: [embed], files: [attachment], components: [buildStopRow()] });
-  } catch (err) { logger.error({ err, channelId }, "Failed to update timer message"); }
-}
-
-// ─────────────────── PUBLIC API ───────────────────
-
-export async function startTimer(opts: {
-  channel: TextBasedChannel;
-  userId: string;
-  studyMinutes: number;
-  breakMinutes: number;
-  style: TimerStyle;
-}): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const { channel, userId, studyMinutes, breakMinutes, style } = opts;
-
-  if (!channel.isSendable()) return { ok: false, reason: "مش قادر أبعت رسائل في القناة دي." };
-
-  const allowedTypes = [
-    ChannelType.GuildText, ChannelType.PublicThread, ChannelType.PrivateThread,
-    ChannelType.GuildAnnouncement, ChannelType.AnnouncementThread,
-    ChannelType.GuildVoice, ChannelType.GuildStageVoice, ChannelType.DM,
-  ] as number[];
-  if (!allowedTypes.includes(channel.type)) return { ok: false, reason: "نوع القناة دي غير مدعوم." };
-
-  if (active.has(channel.id)) {
-    return { ok: false, reason: "في تايمر شغال بالفعل في القناة دي. أوقفه الأول بـ `/break` أو زر الإيقاف." };
-  }
-
-  if (!Number.isFinite(studyMinutes) || !Number.isFinite(breakMinutes) ||
-      studyMinutes <= 0 || breakMinutes <= 0 || studyMinutes > 1440 || breakMinutes > 1440) {
-    return { ok: false, reason: "المدد لازم تكون أرقام بين 1 و 1440 دقيقة (24 ساعة)." };
-  }
-
-  const phaseEndsAt = Date.now() + studyMinutes * 60 * 1000;
-  const placeholder: ActiveTimer = {
-    channelId: channel.id,
-    guildId: "guildId" in channel ? (channel.guildId ?? null) : null,
-    userId,
-    studyMinutes,
-    breakMinutes,
-    phase: "study",
-    phaseEndsAt,
-    message: undefined as unknown as Message,
-    interval: undefined as unknown as NodeJS.Timeout,
-    lastRepostAt: Date.now(),
-    style,
-    paletteIndex: Math.floor(Math.random() * RANDOM_PALETTE.length),
-  };
-
-  const remainingSeconds = Math.ceil((phaseEndsAt - Date.now()) / 1000);
-  const attachment = await buildAttachment(placeholder, remainingSeconds);
-  const embed = buildEmbed(placeholder, remainingSeconds);
-  const message = await channel.send({ embeds: [embed], files: [attachment], components: [buildStopRow()] });
-
-  placeholder.message = message;
-  placeholder.lastRepostAt = Date.now();
-  placeholder.interval = setInterval(() => { void tick(channel.id); }, UPDATE_INTERVAL_MS);
-  active.set(channel.id, placeholder);
-  return { ok: true };
-}
-
-export interface StopTimerOptions {
-  silent?: boolean;
+  intervalId: ReturnType<typeof setInterval>;
+  repostIntervalId: ReturnType<typeof setInterval>;
+  channelId: string;
+  interaction: ChatInputCommandInteraction;
+  row: ActionRowBuilder<ButtonBuilder>;
+  currentMessage: Message | null;
+  stopped: boolean;
   stoppedById?: string;
   stoppedByName?: string;
 }
 
-export async function stopTimer(
+const activeTimers = new Map<string, TimerState>();
+
+function styleColor(style: TimerStyle): number {
+  switch (style) {
+    case "hellokitty":  return 0xff69b4;
+    case "kuromi":      return 0x9b59b6;
+    case "kaitokid":    return 0x2c3e7a;
+    case "gojo":        return 0x7c3aed;
+    case "mylittlepony":return 0xff9ecd;
+    default:            return 0x00ffff;
+  }
+}
+
+async function buildAttachment(state: TimerState): Promise<{ attachment: AttachmentBuilder; embed: EmbedBuilder }> {
+  const now = Date.now();
+  const remaining = Math.max(0, state.phaseEnd - now);
+  const totalMs = state.phase === "study" ? state.studyMs : state.breakMs;
+
+  const imgBuf = await renderTimerImage({
+    phase: state.phase,
+    remainingMs: remaining,
+    totalMs,
+    style: state.style,
+    cycleCount: state.cycleCount,
+    paletteIndex: state.paletteIndex,
+  });
+
+  const attachment = new AttachmentBuilder(imgBuf, { name: "timer.png" });
+
+  const phaseLabel = state.phase === "study" ? "📚 وقت المذاكرة" : "☕ وقت البريك";
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+  const timeStr = `${mins}:${secs.toString().padStart(2, "0")}`;
+
+  const embed = new EmbedBuilder()
+    .setColor(styleColor(state.style))
+    .setTitle(phaseLabel)
+    .setDescription(`**الوقت المتبقي:** ${timeStr}`)
+    .setImage("attachment://timer.png")
+    .setFooter({ text: `دورة ${state.cycleCount + 1} • يتحدث كل 30 ثانية` });
+
+  return { attachment, embed };
+}
+
+async function postTimerMessage(state: TimerState) {
+  const channel = await state.interaction.client.channels.fetch(state.channelId);
+  if (!channel?.isTextBased()) return;
+
+  const { attachment, embed } = await buildAttachment(state);
+  const msg = await channel.send({ embeds: [embed], files: [attachment], components: [state.row] });
+  state.currentMessage = msg;
+}
+
+async function updateTimerMessage(state: TimerState) {
+  if (!state.currentMessage) return;
+  try {
+    const { attachment, embed } = await buildAttachment(state);
+    await state.currentMessage.edit({ embeds: [embed], files: [attachment], components: [state.row] });
+  } catch {
+    await postTimerMessage(state);
+  }
+}
+
+export function hasActiveTimer(channelId: string): boolean {
+  return activeTimers.has(channelId);
+}
+
+export function stopTimer(
   channelId: string,
-  options: StopTimerOptions = {},
-): Promise<{ ok: true } | { ok: false; reason: string }> {
-  const t = active.get(channelId);
-  if (!t) return { ok: false, reason: "مفيش تايمر شغال في القناة دي." };
+  opts?: { stoppedById?: string; stoppedByName?: string; silent?: boolean }
+): boolean {
+  const state = activeTimers.get(channelId);
+  if (!state) return false;
 
-  clearInterval(t.interval);
-  active.delete(channelId);
+  state.stopped = true;
+  state.stoppedById = opts?.stoppedById;
+  state.stoppedByName = opts?.stoppedByName;
+  clearInterval(state.intervalId);
+  clearInterval(state.repostIntervalId);
+  activeTimers.delete(channelId);
 
-  const { silent = false, stoppedById, stoppedByName } = options;
-
-  let stoppedLine: string;
-  if (silent) {
-    stoppedLine = "✅ الجلسة انتهت بنجاح.";
-  } else if (stoppedById) {
-    const name = stoppedByName ?? `<@${stoppedById}>`;
-    stoppedLine = `🛑 تم الإيقاف بواسطة **${name}** (<@${stoppedById}>)`;
-  } else {
-    stoppedLine = "🛑 تم الإيقاف يدويًا.";
+  if (!opts?.silent && state.currentMessage) {
+    const whoStopped = state.stoppedByName ? `\n⛔ وقّفه: **${state.stoppedByName}**` : "";
+    const finalEmbed = new EmbedBuilder()
+      .setColor(0xff4444)
+      .setTitle("⏹️ التايمر اتوقف")
+      .setDescription(`انتهت جلسة المذاكرة.${whoStopped}`)
+      .setFooter({ text: `دورات مكتملة: ${state.cycleCount}` });
+    state.currentMessage.edit({ embeds: [finalEmbed], files: [], components: [] }).catch(() => {});
   }
 
-  try {
-    const isBreak = t.phase === "break";
-    const finalEmbed = new EmbedBuilder()
-      .setTitle(isBreak ? "☕ تم إيقاف البريك" : "⏹ تم إيقاف التايمر")
-      .setDescription([
-        `📖 مدة المذاكرة: **${t.studyMinutes} دقيقة**`,
-        `☕ البريك: **${t.breakMinutes} دقيقة**`,
-        "",
-        stoppedLine,
-      ].join("\n"))
-      .setColor(silent ? 0x22c55e : 0xef4444)
-      .setTimestamp(new Date())
-      .toJSON();
-
-    await t.message.edit({ embeds: [finalEmbed], files: [], components: [] });
-  } catch (err) { logger.error({ err, channelId }, "Failed to finalize timer message"); }
-
-  return { ok: true };
+  return true;
 }
 
-export function hasTimer(channelId: string): boolean { return active.has(channelId); }
+export async function startTimer(opts: {
+  channelId: string;
+  studyMinutes: number;
+  breakMinutes: number;
+  style: TimerStyle;
+  interaction: ChatInputCommandInteraction;
+  row: ActionRowBuilder<ButtonBuilder>;
+}) {
+  const state: TimerState = {
+    studyMs: opts.studyMinutes * 60000,
+    breakMs: opts.breakMinutes * 60000,
+    style: opts.style,
+    phase: "study",
+    phaseEnd: Date.now() + opts.studyMinutes * 60000,
+    cycleCount: 0,
+    paletteIndex: 0,
+    intervalId: undefined as any,
+    repostIntervalId: undefined as any,
+    channelId: opts.channelId,
+    interaction: opts.interaction,
+    row: opts.row,
+    currentMessage: null,
+    stopped: false,
+  };
 
-export function findTimerByUser(userId: string): string | null {
-  for (const [channelId, t] of active) { if (t.userId === userId) return channelId; }
-  return null;
-}
+  activeTimers.set(opts.channelId, state);
 
-export function shutdownAllTimers(): void {
-  for (const t of active.values()) clearInterval(t.interval);
-  active.clear();
+  const { attachment, embed } = await buildAttachment(state);
+  const replyMsg = await opts.interaction.editReply({ embeds: [embed], files: [attachment], components: [opts.row] });
+  state.currentMessage = replyMsg as Message;
+
+  state.intervalId = setInterval(async () => {
+    if (state.stopped) return;
+
+    const now = Date.now();
+    if (now >= state.phaseEnd) {
+      if (state.phase === "study") {
+        state.phase = "break";
+        state.phaseEnd = now + state.breakMs;
+        state.paletteIndex++;
+      } else {
+        state.phase = "study";
+        state.phaseEnd = now + state.studyMs;
+        state.cycleCount++;
+        state.paletteIndex++;
+      }
+    }
+
+    await updateTimerMessage(state).catch(e => logger.error(e, "update error"));
+  }, 30000);
+
+  state.repostIntervalId = setInterval(async () => {
+    if (state.stopped) return;
+    await postTimerMessage(state).catch(e => logger.error(e, "repost error"));
+  }, 5 * 60000);
 }
