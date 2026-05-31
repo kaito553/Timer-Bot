@@ -138,7 +138,7 @@ export async function startTimer(opts: {
     phase: "study",
     phaseEnd: Date.now() + opts.studyMinutes * 60000,
     cycleCount: 0,
-    paletteIndex: 0,
+    paletteIndex: Math.floor(Math.random() * 100),
     intervalId: undefined as any,
     repostIntervalId: undefined as any,
     channelId: opts.channelId,

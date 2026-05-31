@@ -203,27 +203,27 @@ async function renderCharacterImage(ctx: SKRSContext2D, opts: RenderOpts, imgFil
   botG.addColorStop(0, charOpts.overlayColor); botG.addColorStop(1, "transparent");
   ctx.fillStyle = botG; ctx.fillRect(0, H - 80, W, 80);
 
-  ctx.textAlign = "left";
+  ctx.textAlign = "center";
   ctx.font = `bold 22px "DejaVu", sans-serif`;
   ctx.fillStyle = charOpts.accentColor; ctx.shadowColor = charOpts.accentColor; ctx.shadowBlur = 10;
-  ctx.fillText(charOpts.label, 30, 50);
+  ctx.fillText(charOpts.label, W / 2, 50);
 
   const timeStr = formatTime(opts.remainingMs);
-  const timeFontSize = timeStr.length > 5 ? 90 : 130;
+  const timeFontSize = timeStr.length > 5 ? 100 : 140;
 
   ctx.font = `bold ${timeFontSize}px "DejaVu", sans-serif`;
   ctx.strokeStyle = "#000"; ctx.lineWidth = 12; ctx.lineJoin = "round";
   ctx.shadowColor = charOpts.textShadow; ctx.shadowBlur = 30;
-  ctx.strokeText(timeStr, 30, 250);
+  ctx.strokeText(timeStr, W / 2, 250);
   ctx.fillStyle = charOpts.textColor; ctx.shadowBlur = 20;
-  ctx.fillText(timeStr, 30, 250);
+  ctx.fillText(timeStr, W / 2, 250);
 
   const phaseLabel = opts.phase === "study" ? "📚 Study Time" : "☕ Break Time";
   ctx.font = `bold 26px "DejaVu", sans-serif`;
   ctx.fillStyle = charOpts.accentColor; ctx.shadowColor = charOpts.accentColor; ctx.shadowBlur = 10;
-  ctx.fillText(phaseLabel, 30, 305);
+  ctx.fillText(phaseLabel, W / 2, 320);
 
-  drawProgressBar(ctx, opts, { x: 30, y: 330, width: 340, height: 14, color: charOpts.accentColor, bgColor: charOpts.accentColor + "44", glowColor: charOpts.accentColor });
+  drawProgressBar(ctx, opts, { x: 80, y: 345, width: W - 160, height: 14, color: charOpts.accentColor, bgColor: charOpts.accentColor + "44", glowColor: charOpts.accentColor });
   ctx.shadowBlur = 0;
 }
 
