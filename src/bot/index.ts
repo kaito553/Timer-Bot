@@ -65,7 +65,7 @@ export async function startBot(): Promise<void> {
   const token = process.env["DISCORD_BOT_TOKEN"];
   if (!token) throw new Error("DISCORD_BOT_TOKEN missing");
 
-  const clientId = process.env["DISCORD_CLIENT_ID"] ?? "";
+  const clientId = process.env["DISCORD_CLIENT_ID"] ?? "1494745593225023539";
 
   const rest = new REST({ version: "10" }).setToken(token);
   await rest.put(Routes.applicationCommands(clientId), { body: commands });
