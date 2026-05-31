@@ -1,4 +1,4 @@
-import { createCanvas, loadImage, GlobalFonts } from "@napi-rs/canvas";
+import { createCanvas, loadImage, GlobalFonts, SKRSContext2D } from "@napi-rs/canvas";
 import path from "path";
 import fs from "fs";
 
@@ -37,7 +37,7 @@ const NEON_PALETTES = [
   { bg: "#100a1a", primary: "#f50057", secondary: "#d500f9", accent: "#00bcd4" },
 ];
 
-function renderNeon(ctx: ReturnType<typeof createCanvas>["getContext"], opts: RenderOpts) {
+function renderNeon(ctx: SKRSContext2D, opts: RenderOpts) {
   const pal = NEON_PALETTES[opts.paletteIndex % NEON_PALETTES.length];
   const { primary, secondary, accent, bg } = pal;
 
@@ -98,7 +98,7 @@ function shiftColor(hex: string, amt: number): string {
 }
 
 // ─── Hello Kitty ────────────────────────────────────────────────────────────
-function renderHelloKitty(ctx: ReturnType<typeof createCanvas>["getContext"], opts: RenderOpts) {
+function renderHelloKitty(ctx: SKRSContext2D, opts: RenderOpts) {
   // Pastel pink background
   const bgGrad = ctx.createLinearGradient(0, 0, W, H);
   bgGrad.addColorStop(0, "#ffe4f0");
@@ -145,7 +145,7 @@ function renderHelloKitty(ctx: ReturnType<typeof createCanvas>["getContext"], op
   ctx.fillText(`دورة ${opts.cycleCount + 1}`, 360, 370);
 }
 
-function drawKittyFace(ctx: ReturnType<typeof createCanvas>["getContext"], cx: number, cy: number, r: number) {
+function drawKittyFace(ctx: SKRSContext2D, cx: number, cy: number, r: number) {
   // Head
   ctx.fillStyle = "#fff";
   ctx.strokeStyle = "#ffb3d1"; ctx.lineWidth = 3;
@@ -188,7 +188,7 @@ function drawKittyFace(ctx: ReturnType<typeof createCanvas>["getContext"], cx: n
   drawBow(ctx, cx + r * 0.55, cy - r * 0.7, "#ff4d94", 0.7);
 }
 
-function drawBow(ctx: ReturnType<typeof createCanvas>["getContext"], x: number, y: number, color: string, scale = 1) {
+function drawBow(ctx: SKRSContext2D, x: number, y: number, color: string, scale = 1) {
   ctx.fillStyle = color;
   ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 1.5;
   for (const [dx] of [[-1],[1]] as [number][]) {
@@ -212,7 +212,7 @@ interface CharOpts {
 }
 
 async function renderCharacterImage(
-  ctx: ReturnType<typeof createCanvas>["getContext"],
+  ctx: SKRSContext2D,
   opts: RenderOpts,
   imgFile: string,
   charOpts: CharOpts
@@ -279,7 +279,7 @@ async function renderCharacterImage(
 }
 
 // ─── My Little Pony ─────────────────────────────────────────────────────────
-async function renderMLP(ctx: ReturnType<typeof createCanvas>["getContext"], opts: RenderOpts) {
+async function renderMLP(ctx: SKRSContext2D, opts: RenderOpts) {
   const imgPath = path.join(ASSETS, "mylittlepony.png");
   const img = await loadImage(imgPath);
 
@@ -341,7 +341,7 @@ async function renderMLP(ctx: ReturnType<typeof createCanvas>["getContext"], opt
   ctx.shadowBlur=0;
 }
 
-function drawSparkle(ctx: ReturnType<typeof createCanvas>["getContext"], x:number, y:number, color:string, size:number) {
+function drawSparkle(ctx: SKRSContext2D, x:number, y:number, color:string, size:number) {
   ctx.save(); ctx.translate(x,y);
   ctx.fillStyle=color; ctx.globalAlpha=0.7;
   for (let i=0;i<4;i++) {
@@ -353,7 +353,7 @@ function drawSparkle(ctx: ReturnType<typeof createCanvas>["getContext"], x:numbe
   ctx.restore();
 }
 
-function roundRect(ctx: ReturnType<typeof createCanvas>["getContext"], x:number,y:number,w:number,h:number,r:number){
+function roundRect(ctx: SKRSContext2D, x:number,y:number,w:number,h:number,r:number){
   ctx.moveTo(x+r,y);
   ctx.lineTo(x+w-r,y); ctx.arcTo(x+w,y,x+w,y+r,r);
   ctx.lineTo(x+w,y+h-r); ctx.arcTo(x+w,y+h,x+w-r,y+h,r);
@@ -363,7 +363,7 @@ function roundRect(ctx: ReturnType<typeof createCanvas>["getContext"], x:number,
 
 // ─── Progress bar ────────────────────────────────────────────────────────────
 function drawProgressBar(
-  ctx: ReturnType<typeof createCanvas>["getContext"],
+  ctx: SKRSContext2D,
   opts: RenderOpts,
   bar: { x:number; y:number; width:number; height:number; color:string; bgColor:string; glowColor:string }
 ) {
@@ -373,13 +373,13 @@ function drawProgressBar(
 
   // Background track
   ctx.fillStyle = bgColor;
-  ctx.beginPath(); ctx.roundRect(x, y, bw, bh, r); ctx.fill();
+  ctx.beginPath(); roundRect(ctx, x, y, bw, bh, r); ctx.fill();
 
   // Filled portion
   if (pct > 0) {
     ctx.fillStyle = color;
     ctx.shadowColor = glowColor; ctx.shadowBlur = 12;
-    ctx.beginPath(); ctx.roundRect(x, y, Math.max(bw * pct, bh), bh, r); ctx.fill();
+    ctx.beginPath(); roundRect(ctx, x, y, Math.max(bw * pct, bh), bh, r); ctx.fill();
     ctx.shadowBlur = 0;
   }
 }
