@@ -32,12 +32,12 @@ const activeTimers = new Map<string, TimerState>();
 
 function styleColor(style: TimerStyle): number {
   switch (style) {
-    case "hellokitty":  return 0xff69b4;
-    case "kuromi":      return 0x9b59b6;
-    case "kaitokid":    return 0x2c3e7a;
-    case "gojo":        return 0x7c3aed;
-    case "mylittlepony":return 0xff9ecd;
-    default:            return 0x00ffff;
+    case "hellokitty":   return 0xff69b4;
+    case "kuromi":       return 0x9b59b6;
+    case "kaitokid":     return 0x2c3e7a;
+    case "gojo":         return 0x7c3aed;
+    case "mylittlepony": return 0xff9ecd;
+    default:             return 0x00ffff;
   }
 }
 
@@ -77,7 +77,7 @@ async function postTimerMessage(state: TimerState) {
   if (!channel?.isTextBased() || !("send" in channel)) return;
 
   const { attachment, embed } = await buildAttachment(state);
-  const msg = await channel.send({ embeds: [embed], files: [attachment], components: [state.row] });
+  const msg = await (channel as any).send({ embeds: [embed], files: [attachment], components: [state.row] });
   state.currentMessage = msg;
 }
 
@@ -155,7 +155,6 @@ export async function startTimer(opts: {
 
   state.intervalId = setInterval(async () => {
     if (state.stopped) return;
-
     const now = Date.now();
     if (now >= state.phaseEnd) {
       if (state.phase === "study") {
@@ -169,7 +168,6 @@ export async function startTimer(opts: {
         state.paletteIndex++;
       }
     }
-
     await updateTimerMessage(state).catch(e => logger.error(e, "update error"));
   }, 30000);
 

@@ -22,10 +22,11 @@ const STYLE_CHOICES = [
   { name: "كايتو كيد ♠", value: "kaitokid" },
   { name: "ساتورو غوجو ∞", value: "gojo" },
   { name: "ماي ليتل بوني 🦄", value: "mylittlepony" },
+  { name: "أنمي 🌙", value: "anime" },
 ];
 
 function isStyleValue(v: string): v is TimerStyle {
-  return ["random","hellokitty","kuromi","kaitokid","gojo","mylittlepony"].includes(v);
+  return ["random","hellokitty","kuromi","kaitokid","gojo","mylittlepony","anime"].includes(v);
 }
 
 const commands = [
@@ -37,7 +38,7 @@ const commands = [
     .addIntegerOption(o =>
       o.setName("مدة_البريك").setDescription("وقت البريك بالدقايق").setRequired(true).setMinValue(1).setMaxValue(60))
     .addStringOption(o =>
-      o.setName("ستايل").setDescription("شكل التايمر").setRequired(false)
+      o.setName("style").setDescription("شكل التايمر").setRequired(false)
         .addChoices(...STYLE_CHOICES))
     .toJSON(),
   new SlashCommandBuilder()
@@ -74,7 +75,7 @@ async function handleCommand(interaction: ChatInputCommandInteraction) {
   if (interaction.commandName === "تايمر") {
     const studyMin = interaction.options.getInteger("مدة_المذاكرة", true);
     const breakMin = interaction.options.getInteger("مدة_البريك", true);
-    const styleRaw = interaction.options.getString("ستايل") ?? "random";
+    const styleRaw = interaction.options.getString("style") ?? "random";
     const style: TimerStyle = isStyleValue(styleRaw) ? styleRaw : "random";
 
     if (hasActiveTimer(interaction.channelId ?? "")) {
