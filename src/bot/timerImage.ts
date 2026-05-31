@@ -25,6 +25,15 @@ export interface RenderOpts {
 
 const W = 900, H = 400;
 
+function formatTime(ms: number): string {
+  const totalSecs = Math.floor(ms / 1000);
+  const h = Math.floor(totalSecs / 3600);
+  const m = Math.floor((totalSecs % 3600) / 60);
+  const s = totalSecs % 60;
+  if (h > 0) return `${h}:${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+  return `${m.toString().padStart(2,"0")}:${s.toString().padStart(2,"0")}`;
+}
+
 const NEON_PALETTES = [
   { bg: "#0a0a1a", primary: "#00ffff", secondary: "#ff00ff", accent: "#ffff00" },
   { bg: "#0d0d0d", primary: "#ff6b35", secondary: "#f7c59f", accent: "#efefd0" },
@@ -64,10 +73,9 @@ function renderNeon(ctx: SKRSContext2D, opts: RenderOpts) {
   ctx.textAlign = "center";
   ctx.fillText(phaseText, W / 2, 80);
 
-  const mins = Math.floor(opts.remainingMs / 60000);
-  const secs = Math.floor((opts.remainingMs % 60000) / 1000);
-  const timeStr = `${mins.toString().padStart(2,"0")}:${secs.toString().padStart(2,"0")}`;
-  ctx.font = `bold 140px "DejaVu", sans-serif`;
+  const timeStr = formatTime(opts.remainingMs);
+  const timeFontSize = timeStr.length > 5 ? 100 : 140;
+  ctx.font = `bold ${timeFontSize}px "DejaVu", sans-serif`;
   ctx.fillStyle = primary;
   ctx.shadowColor = primary; ctx.shadowBlur = 40;
   ctx.fillText(timeStr, W / 2, 240);
@@ -107,10 +115,9 @@ function renderHelloKitty(ctx: SKRSContext2D, opts: RenderOpts) {
   const label = opts.phase === "study" ? "🎀 Study Time 🎀" : "🎀 Break Time 🎀";
   ctx.fillText(label, 360, 80);
 
-  const mins = Math.floor(opts.remainingMs / 60000);
-  const secs = Math.floor((opts.remainingMs % 60000) / 1000);
-  const timeStr = `${mins.toString().padStart(2,"0")}:${secs.toString().padStart(2,"0")}`;
-  ctx.font = `bold 130px "DejaVu", sans-serif`;
+  const timeStr = formatTime(opts.remainingMs);
+  const timeFontSize = timeStr.length > 5 ? 90 : 130;
+  ctx.font = `bold ${timeFontSize}px "DejaVu", sans-serif`;
   ctx.strokeStyle = "#c2185b"; ctx.lineWidth = 6;
   ctx.strokeText(timeStr, 360, 240);
   ctx.fillStyle = "#ff69b4"; ctx.shadowColor = "#ff1493"; ctx.shadowBlur = 20;
@@ -201,11 +208,10 @@ async function renderCharacterImage(ctx: SKRSContext2D, opts: RenderOpts, imgFil
   ctx.fillStyle = charOpts.accentColor; ctx.shadowColor = charOpts.accentColor; ctx.shadowBlur = 10;
   ctx.fillText(charOpts.label, 30, 50);
 
-  const mins = Math.floor(opts.remainingMs / 60000);
-  const secs = Math.floor((opts.remainingMs % 60000) / 1000);
-  const timeStr = `${mins.toString().padStart(2,"0")}:${secs.toString().padStart(2,"0")}`;
+  const timeStr = formatTime(opts.remainingMs);
+  const timeFontSize = timeStr.length > 5 ? 90 : 130;
 
-  ctx.font = `bold 130px "DejaVu", sans-serif`;
+  ctx.font = `bold ${timeFontSize}px "DejaVu", sans-serif`;
   ctx.strokeStyle = "#000"; ctx.lineWidth = 12; ctx.lineJoin = "round";
   ctx.shadowColor = charOpts.textShadow; ctx.shadowBlur = 30;
   ctx.strokeText(timeStr, 30, 250);
@@ -251,10 +257,9 @@ async function renderMLP(ctx: SKRSContext2D, opts: RenderOpts) {
   ctx.fillStyle="#c2185b"; ctx.shadowColor="#ff69b4"; ctx.shadowBlur=10;
   ctx.fillText(opts.phase==="study" ? "🦄 Study Time 🌈" : "🌸 Break Time 🌈", 40, 76);
 
-  const mins=Math.floor(opts.remainingMs/60000);
-  const secs=Math.floor((opts.remainingMs%60000)/1000);
-  const timeStr=`${mins.toString().padStart(2,"0")}:${secs.toString().padStart(2,"0")}`;
-  ctx.font=`bold 130px "DejaVu", sans-serif`;
+  const timeStr = formatTime(opts.remainingMs);
+  const timeFontSize = timeStr.length > 5 ? 90 : 130;
+  ctx.font=`bold ${timeFontSize}px "DejaVu", sans-serif`;
   ctx.strokeStyle="rgba(255,255,255,0.8)"; ctx.lineWidth=8; ctx.lineJoin="round";
   ctx.shadowColor="#ff80c0"; ctx.shadowBlur=20;
   ctx.strokeText(timeStr, 45, 220);

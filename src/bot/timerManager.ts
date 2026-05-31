@@ -161,14 +161,13 @@ export async function startTimer(opts: {
       if (state.phase === "study") {
         state.phase = "break";
         state.phaseEnd = now + state.breakMs;
-        state.paletteIndex++;
       } else {
         state.phase = "study";
         state.phaseEnd = now + state.studyMs;
         state.cycleCount++;
-        state.paletteIndex++;
       }
     }
+    state.paletteIndex++;
     await updateTimerMessage(state).catch(e => logger.error(e, "update error"));
   }, 30000);
 
