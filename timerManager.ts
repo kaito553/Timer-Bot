@@ -35,6 +35,7 @@ interface ActiveTimer {
   style: TimerStyle;
   paletteIndex: number;
   rotate: boolean;
+  cycleIndex: number;
 }
 
 const active = new Map<string, ActiveTimer>();
@@ -106,6 +107,7 @@ function buildAttachment(t: ActiveTimer, remainingSeconds: number): AttachmentBu
     style: t.style,
     paletteIndex: t.paletteIndex,
     rotate: t.rotate,
+    cycleIndex: t.cycleIndex,
   });
   return new AttachmentBuilder(buf, { name: "timer.png" });
 }
@@ -150,6 +152,7 @@ async function tick(channelId: string): Promise<void> {
       t.phase = "break";
       t.phaseEndsAt = now + t.breakMinutes * 60 * 1000;
       remainingSeconds = Math.ceil((t.phaseEndsAt - now) / 1000);
+      if (t.rotate) t.cycleIndex += 1;
 
       try {
         const channel = t.message.channel;
@@ -271,6 +274,7 @@ export async function startTimer(opts: {
     style,
     paletteIndex: Math.floor(Math.random() * RANDOM_PALETTE.length),
     rotate,
+    cycleIndex: 1,
   };
 
   const remainingSeconds = Math.ceil((phaseEndsAt - Date.now()) / 1000);

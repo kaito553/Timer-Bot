@@ -65,6 +65,7 @@ export interface TimerImageOptions {
   style: TimerStyle;
   paletteIndex?: number;
   rotate?: boolean;
+  cycleIndex?: number;
 }
 
 export function renderTimerImage(opts: TimerImageOptions): Buffer {
@@ -105,71 +106,96 @@ function renderNeon(ctx: SKRSContext2D, opts: TimerImageOptions): void {
     accentSoft = RANDOM_PALETTE[idx]!.accentSoft;
   }
 
-  const bg = ctx.createLinearGradient(0, 0, WIDTH, HEIGHT);
-  bg.addColorStop(0, "#08020c");
-  bg.addColorStop(1, "#1a0a1f");
-  ctx.fillStyle = bg;
+  // Dark background
+  ctx.fillStyle = "#0d0d0d";
   ctx.fillRect(0, 0, WIDTH, HEIGHT);
 
   const cx = WIDTH / 2;
   const cy = HEIGHT / 2;
 
+  // Grid lines
   ctx.save();
-  ctx.translate(cx, cy);
-  ctx.strokeStyle = accentSoft;
-  ctx.globalAlpha = 0.55;
-  ctx.lineWidth = 1.2;
-  for (let i = 0; i < 14; i++) {
-    ctx.save();
-    ctx.rotate((Math.PI / 14) * i);
+  ctx.strokeStyle = accent;
+  ctx.globalAlpha = 0.07;
+  ctx.lineWidth = 1;
+  const gridSize = 40;
+  for (let x = 0; x <= WIDTH; x += gridSize) {
     ctx.beginPath();
-    ctx.ellipse(0, 0, 320, 110, 0, 0, Math.PI * 2);
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, HEIGHT);
     ctx.stroke();
-    ctx.restore();
+  }
+  for (let y = 0; y <= HEIGHT; y += gridSize) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(WIDTH, y);
+    ctx.stroke();
   }
   ctx.restore();
 
+  // Horizontal glow bar across the middle
   ctx.save();
+  const bar = ctx.createLinearGradient(0, cy, WIDTH, cy);
+  bar.addColorStop(0, "transparent");
+  bar.addColorStop(0.2, accentSoft);
+  bar.addColorStop(0.5, accent);
+  bar.addColorStop(0.8, accentSoft);
+  bar.addColorStop(1, "transparent");
+  ctx.fillStyle = bar;
   ctx.globalAlpha = 0.18;
-  const glow = ctx.createRadialGradient(cx, cy, 40, cx, cy, 420);
-  glow.addColorStop(0, accent);
-  glow.addColorStop(1, "transparent");
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, WIDTH, HEIGHT);
+  ctx.fillRect(0, cy - 2, WIDTH, 4);
+  ctx.globalAlpha = 0.08;
+  ctx.fillRect(0, cy - 18, WIDTH, 36);
   ctx.restore();
 
+  // Top & bottom accent lines
+  ctx.save();
+  ctx.strokeStyle = accent;
+  ctx.lineWidth = 2;
+  ctx.globalAlpha = 0.7;
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(WIDTH, 0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(0, HEIGHT); ctx.lineTo(WIDTH, HEIGHT); ctx.stroke();
+  ctx.restore();
+
+  // Header — "STUDY MODE" / "BREAK MODE"
   ctx.save();
   ctx.fillStyle = accent;
   ctx.shadowColor = accent;
-  ctx.shadowBlur = 18;
-  ctx.font = `bold 30px "${FONT_FAMILY}", sans-serif`;
+  ctx.shadowBlur = 14;
+  ctx.globalAlpha = 0.9;
+  ctx.font = `bold 28px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText("TIMER", cx, 60);
+  ctx.fillText(isBreak ? "✦ BREAK MODE ✦" : "✦ STUDY MODE ✦", cx, 48);
   ctx.restore();
 
+  // Time text
   const timeText = formatTime(opts.remainingSeconds);
   ctx.save();
   ctx.fillStyle = accent;
   ctx.shadowColor = accent;
-  ctx.shadowBlur = 35;
+  ctx.shadowBlur = 40;
   ctx.font = `bold 140px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(timeText, cx, cy + 10);
+  ctx.fillText(timeText, cx, cy + 8);
   ctx.shadowBlur = 0;
   ctx.fillStyle = "#ffffff";
-  ctx.globalAlpha = 0.18;
-  ctx.fillText(timeText, cx, cy + 10);
+  ctx.globalAlpha = 0.12;
+  ctx.fillText(timeText, cx, cy + 8);
   ctx.restore();
 
+  // Bottom — "CYCLE X"
+  const cycle = opts.cycleIndex ?? 1;
   ctx.save();
-  ctx.fillStyle = "#f5d0fe";
-  ctx.globalAlpha = 0.85;
+  ctx.fillStyle = accent;
+  ctx.globalAlpha = 0.75;
+  ctx.shadowColor = accent;
+  ctx.shadowBlur = 8;
   ctx.font = `bold 22px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
-  ctx.fillText(isBreak ? "BREAK TIME" : "FOCUS TIME", cx, HEIGHT - 36);
+  ctx.fillText(`CYCLE ${cycle}`, cx, HEIGHT - 36);
   ctx.restore();
 }
 
@@ -244,17 +270,27 @@ function renderHelloKitty(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   ctx.fillText(timeText, cx - 2, cy + 6);
   ctx.restore();
 
-  // Phase label with bow decoration
+  // Phase label
   ctx.save();
   ctx.fillStyle = "#880e4f";
-  ctx.font = `bold 22px "${FONT_FAMILY}", sans-serif`;
+  ctx.font = `bold 20px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(
     isBreak ? "♡ BREAK TIME ♡" : "♡ FOCUS TIME ♡",
-    cx,
+    cx - 50,
     HEIGHT - 30,
   );
+  ctx.restore();
+
+  // Cycle label
+  ctx.save();
+  ctx.fillStyle = "#880e4f";
+  ctx.globalAlpha = 0.7;
+  ctx.font = `bold 18px "${FONT_FAMILY}", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`CYCLE ${opts.cycleIndex ?? 1}`, cx + 120, HEIGHT - 30);
   ctx.restore();
 }
 
@@ -489,14 +525,24 @@ function renderKuromie(ctx: SKRSContext2D, opts: TimerImageOptions): void {
   // Phase label
   ctx.save();
   ctx.fillStyle = "#7b003c";
-  ctx.font = `bold 22px "${FONT_FAMILY}", sans-serif`;
+  ctx.font = `bold 20px "${FONT_FAMILY}", sans-serif`;
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(
     isBreak ? "✿ BREAK TIME ✿" : "✿ FOCUS TIME ✿",
-    cx,
+    cx - 50,
     HEIGHT - 30,
   );
+  ctx.restore();
+
+  // Cycle label
+  ctx.save();
+  ctx.fillStyle = "#7b003c";
+  ctx.globalAlpha = 0.7;
+  ctx.font = `bold 18px "${FONT_FAMILY}", sans-serif`;
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.fillText(`CYCLE ${opts.cycleIndex ?? 1}`, cx + 120, HEIGHT - 30);
   ctx.restore();
 }
 
