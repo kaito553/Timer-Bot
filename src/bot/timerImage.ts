@@ -110,7 +110,7 @@ function drawProgressBar(
 // ─── NEON / RANDOM ────────────────────────────────────────────────────────────
 
 function renderNeon(ctx: SKRSContext2D, opts: RenderOpts): void {
-  const pal = NEON_PALETTES[opts.paletteIndex % NEON_PALETTES.length];
+  const pal = NEON_PALETTES[opts.imageIndex % NEON_PALETTES.length];
   const { primary, secondary, accent, bg } = pal;
 
   const grad = ctx.createLinearGradient(0, 0, W, H);

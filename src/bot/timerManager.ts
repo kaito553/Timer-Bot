@@ -103,7 +103,9 @@ async function postTimerMessage(state: TimerState): Promise<void> {
   if (!channel?.isTextBased() || !("send" in channel)) return;
 
   if (state.currentMessage) {
-    await state.currentMessage.delete().catch(() => {});
+    await state.currentMessage.delete().catch(async () => {
+      await state.interaction.deleteReply().catch(() => {});
+    });
     state.currentMessage = null;
   }
 
