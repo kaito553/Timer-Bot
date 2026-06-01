@@ -25,6 +25,7 @@ interface TimerState {
   interaction: ChatInputCommandInteraction;
   row: ActionRowBuilder<ButtonBuilder>;
   currentMessage: Message | null;
+  isInteractionReply: boolean;
   stopped: boolean;
   startedByName: string;
   cycleImages: boolean;
@@ -103,10 +104,13 @@ async function postTimerMessage(state: TimerState): Promise<void> {
   if (!channel?.isTextBased() || !("send" in channel)) return;
 
   if (state.currentMessage) {
-    await state.currentMessage.delete().catch(async () => {
+    if (state.isInteractionReply) {
       await state.interaction.deleteReply().catch(() => {});
-    });
+    } else {
+      await state.currentMessage.delete().catch(() => {});
+    }
     state.currentMessage = null;
+    state.isInteractionReply = false;
   }
 
   if (state.cycleImages) state.imageIndex++;
@@ -196,8 +200,9 @@ export async function startTimer(opts: {
     channelId:   opts.channelId,
     interaction: opts.interaction,
     row:         opts.row,
-    currentMessage: null,
-    stopped:        false,
+    currentMessage:     null,
+    isInteractionReply: false,
+    stopped:            false,
     startedByName:  opts.startedByName,
   };
 
@@ -209,7 +214,8 @@ export async function startTimer(opts: {
     files: [attachment],
     components: [opts.row],
   });
-  state.currentMessage = replyMsg as Message;
+  state.currentMessage     = replyMsg as Message;
+  state.isInteractionReply = true;
 
   state.intervalId = setInterval(async () => {
     if (state.stopped) return;
