@@ -129,8 +129,8 @@ async function updateTimerMessage(state: TimerState): Promise<void> {
   try {
     const { attachment, embed } = await buildAttachment(state);
     await state.currentMessage.edit({ embeds: [embed], files: [attachment], components: [state.row] });
-  } catch {
-    await postTimerMessage(state);
+  } catch (e) {
+    logger.warn(e, "edit skipped");
   }
 }
 
