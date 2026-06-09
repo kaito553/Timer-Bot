@@ -45,7 +45,7 @@ const commands = [
     .setDescription("Start a study timer")
     .addIntegerOption((o) =>
       o.setName("study_minutes").setDescription("Study duration in minutes")
-        .setRequired(true).setMinValue(1).setMaxValue(180),
+        .setRequired(true).setMinValue(1).setMaxValue(360),
     )
     .addIntegerOption((o) =>
       o.setName("break_minutes").setDescription("Break duration in minutes")
